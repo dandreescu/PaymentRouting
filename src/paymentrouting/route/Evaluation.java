@@ -1,5 +1,9 @@
 package paymentrouting.route;
 
+import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.REDUNDANT;
+import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.REDUNDANT_RETRY;
+import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.RETRY;
+
 import gtna.data.Series;
 import gtna.metrics.Metric;
 import gtna.metrics.basic.DegreeDistribution;
@@ -7,17 +11,21 @@ import gtna.metrics.basic.ShortestPaths;
 import gtna.networks.Network;
 import gtna.networks.model.BarabasiAlbert;
 import gtna.networks.model.ErdosRenyi;
+import gtna.networks.model.WattsStrogatz;
 import gtna.networks.util.ReadableFile;
 import gtna.transformation.Transformation;
 import gtna.transformation.partition.LargestWeaklyConnectedComponent;
 import gtna.util.Config;
 import paymentrouting.datasets.InitCapacities;
 import paymentrouting.datasets.InitCapacities.BalDist;
+import paymentrouting.datasets.InitPaths;
 import paymentrouting.datasets.TransactionStats;
 import paymentrouting.datasets.Transactions;
 import paymentrouting.datasets.Transactions.TransDist;
 import paymentrouting.route.attack.ColludingDropSplits;
 import paymentrouting.route.attack.NonColludingDropSplits;
+import paymentrouting.route.concurrency.RouteBoomerang;
+import paymentrouting.route.concurrency.RouteBoomerang.BoomType;
 import paymentrouting.route.concurrency.RoutePaymentConcurrent;
 
 public class Evaluation {
@@ -27,13 +35,36 @@ public class Evaluation {
 	 */
 
 	public static void main(String[] args) {
-		dynamicConcurrentEval(); 
+//		dynamicConcurrentEval();
+		boomerangEval();
+	}
+
+	public static void boomerangEval() {
+		Config.overwrite("SKIP_EXISTING_DATA_FOLDERS", ""+false);
+		Config.overwrite("SERIES_GRAPH_WRITE", ""+false);
+		Config.overwrite("MAIN_DATA_FOLDER", "./data/boomerang/");
+
+		Transformation[] trans = new Transformation[] {
+				new InitCapacities(100, 1000),
+				new Transactions("lightning/ripple_val.csv", 50000),
+				new InitPaths(25)};
+		Network net = new WattsStrogatz(100,8, 0.8, trans);
+
+		Metric[] m = new Metric[15];
+		int k = 0;
+		for (int u: new int[]{0, 10, 20, 75, 150}) {
+			m[k++] = new RouteBoomerang(RETRY, u);
+			m[k++] = new RouteBoomerang(REDUNDANT, u);
+			m[k++] = new RouteBoomerang(REDUNDANT_RETRY, u);
+		}
+		Series.generate(net, m, 10);
 	}
 	
 	public static void attackEval() {
 		Config.overwrite("SKIP_EXISTING_DATA_FOLDERS", ""+false);
 		Config.overwrite("SERIES_GRAPH_WRITE", ""+true);
 		Config.overwrite("MAIN_DATA_FOLDER", "./data/attack-lightning/");
+
 		int init = 200; 
 		int trval = 100; 
 		int runs = 20;
@@ -128,7 +159,7 @@ public class Evaluation {
 		int init = 200; 
 		int[] trval = {100, 25};
 		int runs = 10;
-		int trs = 1000000;
+		int trs = 10;//00000;
 		int[] trees = {5}; 
 		double[] lat = {0.1};
 		double[] trh = {100}; 

@@ -48,6 +48,9 @@ public class CreditLinks extends GraphProperty {
     public double getPot(int src, int dst){
     	if (src < dst){
     		double[] weight = this.getWeights(new Edge(src,dst));
+			if (weight == null) {
+				System.out.println("?");
+			}
     		return weight[2]-weight[1];
     	} else {
     		double[] weight = this.getWeights(new Edge(dst,src));

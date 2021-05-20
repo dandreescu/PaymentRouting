@@ -44,7 +44,7 @@ public class RoutePayment extends Metric{
 	protected Transaction[] transactions;
 	protected boolean log = false;
 	protected PathSelection select;
-	protected CreditLinks edgeweights; 
+	public CreditLinks edgeweights;
 	protected int tInterval = 1000;
 	protected int recompute_epoch;
 	long[] trys;
@@ -52,12 +52,15 @@ public class RoutePayment extends Metric{
 	long[] pathSucc;
 	long[] mes;
 	long[] mesSucc;
-	protected HashMap<Edge, Double> originalAll;
+	public HashMap<Edge, Double> originalAll;
 	
 	public RoutePayment(PathSelection ps, int trials, boolean up) {
 		this(ps,trials,up,Integer.MAX_VALUE); 
 	}
-	
+
+	public RoutePayment(Parameter[] params) {
+		super("ROUTE_PAYMENT", params);
+	}
 
 	public RoutePayment(PathSelection ps, int trials, boolean up, int epoch) {
 		super("ROUTE_PAYMENT", new Parameter[]{new StringParameter("SELECTION", ps.getName()), new IntParameter("TRIALS", trials),

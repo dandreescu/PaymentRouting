@@ -16,7 +16,19 @@ public class InitCapacities extends Transformation {
 	double parameter;
 	double variance;
 	BalDist bd;
-	
+	double logMin;
+	double logMax;
+
+	public InitCapacities (double min, double max) {
+		super("INIT_CAPACITIES", new Parameter[] {
+				new StringParameter("BAL_DIST", "LOG_UNIFORM"),
+				new DoubleParameter("MIN", min),
+				new DoubleParameter("MAX", max)});
+		this.bd = BalDist.LOG_UNIFORM;
+		this.logMin = Math.log(min);
+		this.logMax = Math.log(max);
+	}
+
 	public InitCapacities(double expected, double var, BalDist b) {
 		super("INIT_CAPACITIES", new Parameter[] {new DoubleParameter("EXPECTED", expected),
 				new StringParameter("BAL_DIST",b.name())});
@@ -42,16 +54,16 @@ public class InitCapacities extends Transformation {
 	}
 	
 	public enum BalDist {
-		EXP, CONST, NORMAL
+		EXP, CONST, NORMAL, LOG_UNIFORM
 	}
-	
-	
 	
 	private double getNextVal(Random rand) {
 		//do inversion method 
 		double r = rand.nextDouble();
 		double res; 
 		switch (this.bd) {
+		case LOG_UNIFORM: res = Math.exp(logMin + rand.nextDouble() * (logMax - logMin));
+		break;
 		case EXP: res = - Math.log(1-r)/this.parameter; 
 		break;
 		case CONST: res = this.parameter;

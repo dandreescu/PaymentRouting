@@ -22,9 +22,11 @@ public class RoutePaymentConcurrent extends RoutePayment {
 	HashMap<Integer, Vector<PartialPath>> ongoingTr; 
 	HashMap<Edge, Double> locked; 
 	PriorityQueue<ScheduledUnlock> qLocks;
-	
-	
-	
+
+
+	public RoutePaymentConcurrent(Parameter[] parms) {
+		super(parms);
+	}
 	
 	public RoutePaymentConcurrent(PathSelection ps, int trials, double latency) {
 		this(ps,trials,Integer.MAX_VALUE, latency); 
@@ -35,8 +37,8 @@ public class RoutePaymentConcurrent extends RoutePayment {
 		super(ps, trials, true, epoch, new Parameter[]{new DoubleParameter("LINK_LATENCY", latency)});
 		this.linklatency = latency; 
 	}
-	
-	 public void run(Graph g) {
+
+	public void run(Graph g) {
 		 Node[] nodes = g.getNodes();
 		 //Add transactions into queue
 		 for (int i = 0; i < this.transactions.length; i++) {
@@ -197,7 +199,8 @@ public class RoutePaymentConcurrent extends RoutePayment {
 	public boolean lock(int s, int t, double v) {
 		double max = this.computePotential(s, t);
 		if (max < v) {
-			System.out.println("s=" + s + " t="+t + " max="+max + " v="+v); 
+			if (log)
+				System.out.println("s=" + s + " t="+t + " max="+max + " v="+v);
 			return false; 
 		}
 		//add to already locked collateral

@@ -12,7 +12,10 @@ public class SummarizeResults {
 	public static String path = "";
 	
 	public static void main(String[] args) {
-        dynConcurrent("SUCCESS="); 
+//		dynConcurrent("SUCCESS=");
+		boomerang("SUCCESS=");
+		boomerang("TTC=");
+		boomerang("VOLUME=");
 //		String[][] singles = {{"SUCCESS=", "succ"},
 //				              {"MES_AV=", "mes"},
 //		                      {"MES_AV_SUCC=", "mesSucc"}};
@@ -24,14 +27,40 @@ public class SummarizeResults {
 ////		          resTrees(singles[i][0], singles[i][1]);
 //		}
 	}
-	
+
+	public static void boomerang(String single) {
+		String dir = "data/boomerang/WATTS_STROGATZ-100-8-0.8--INIT_CAPACITIES-LOG_UNIFORM-100.0-1000.0--TRANSACTIONS-RIPPLE-50000--COMPUTE_PATHS-25/";
+		String[] us = {"0", "10", "20", "75", "150"};
+		String[] protocols = new String[] { "RETRY", "REDUNDANT", "REDUNDANT_RETRY"};
+
+		String line = String.format("\n\n%-17s ", single.substring(0, single.length()-1) + "(U)");
+		for (String u: us)
+			line += String.format("%8s  ", u);
+		System.out.println(line);
+
+		for (String protocol : protocols) {
+			line = String.format("%-17s ", protocol);
+			for (String u : us) {
+				double[] res = getSingleVar(dir + "ROUTE_PAYMENT-BOOMERANG_"
+						+ protocol + "-" + u + "/_singles.txt", single);
+
+				String num = (res[0] > 1000)
+						? String.format("%.0f  ", res[0])
+						: String.format("%.2f  ", res[0]);
+
+				line += String.format("%10s", num);
+			}
+			System.out.println(line);
+		}
+	}
+
 	public static void dynConcurrent(String single) {
 		String[] vals = {"25.0", "100.0"};
 		String[] rates = {"0.1", "0.5", "1.0", "2.0"};
 		String[] algos = new String[] { "CLOSEST_NEIGHBOR", "SPLIT_CLOSEST", "SPLIT_IFNECESSARY"};
 		String[] dist = new String[] {
 				"HOP_DISTANCE",
-				"SPEEDYMURMURS_MULTI_5", 
+				"SPEEDYMURMURS_MULTI_5",
 		};
 		for (int j = 0; j < vals.length; j++) {
 			for (int r = 0; r < rates.length; r++) {
@@ -39,16 +68,16 @@ public class SummarizeResults {
 				for (int k = 0; k < dist.length; k++) {
 					for (int m = 0; m < algos.length; m++) {
 						double[] res = getSingleVar("data/con-lightning/"
-								+ "READABLE_FILE_LIGHTNING-6329--INIT_CAPACITIES-200.0-EXP--"
-								+ "TRANSACTIONS-"+vals[j]+"-EXP-false-1000000-"+rates[r]+"-false/"
-								+ "ROUTE_PAYMENT-1-true-"+dist[k]+"-"+algos[m]+"-2147483647-0.1"
-								+ "/_singles.txt",
-								single); 
-						line = line + " & " + "$" + 
-							      String.format("%.2f", res[0]) + " \\pm " + String.format("%.3f", res[1]) + "$"; 
+										+ "READABLE_FILE_LIGHTNING-6329--INIT_CAPACITIES-200.0-EXP--"
+										+ "TRANSACTIONS-"+vals[j]+"-EXP-false-10-"+rates[r]+"-false/"
+										+ "ROUTE_PAYMENT-1-true-"+dist[k]+"-"+algos[m]+"-2147483647-0.1"
+										+ "/_singles.txt",
+								single);
+						line = line + " & " + "$" +
+								String.format("%.2f", res[0]) + " \\pm " + String.format("%.3f", res[1]) + "$";
 					}
 				}
-				System.out.println(line + "\\\\"); 
+				System.out.println(line + "\\\\");
 			}
 		}
 	}
@@ -491,7 +520,7 @@ public class SummarizeResults {
 		    }
 		    br.close();
 		} catch (IOException e) {
-			
+			e.printStackTrace();
 		}
 		return res; 
 	}
