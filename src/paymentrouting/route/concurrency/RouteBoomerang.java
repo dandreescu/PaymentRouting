@@ -68,6 +68,7 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
   }
 
   public void postprocess() {
+    unlockAllUntil(Double.MAX_VALUE);
     weightUpdate(edgeweights, originalAll);
 
     ttc /= success;
