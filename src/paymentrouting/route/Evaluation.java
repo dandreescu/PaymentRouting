@@ -26,7 +26,8 @@ public class Evaluation {
 	 */
 
 	public static void main(String[] args) {
-		attackEval();  
+//		attackEval();
+		dynamicEval();
 	}
 	
 	/**
@@ -81,7 +82,7 @@ public class Evaluation {
 	}
 	
 	/**
-	 * evaluation with dynamic adjustments of weights (general setup), Figure 8 in paper  
+	 * evaluation with dynamic adjustments of weights (general setup), Figure 6 in paper  
 	 */
 	public static void dynamicEval() {
 		//storage setup
@@ -90,16 +91,16 @@ public class Evaluation {
 		Config.overwrite("MAIN_DATA_FOLDER", "./data/dyn-lightning/");
 		//network parameters 
 		int init = 200; 
-		int[] trval = {10,100};
-		int trs = 1000000;
+		int[] trval = {10};//,100};
+		int trs = 10;//00000;
 		TransDist td = TransDist.EXP;
 		BalDist bd = BalDist.EXP;
 		String file  = "lightning/lngraph_2020_03_01__04_00.graph";
 		//routing parameters: trees for speedymurmurs
-		int[] trees = {1,3,5}; 
+		int[] trees = {1};//,3,5};
 		
 		//execute all experiments 
-		int runs = 20;
+		int runs = 1;//20;
 		for (int i = 0; i < trval.length; i++) {
 			dynamic(init, trval[i], 20, 
 					trs, trees, td, bd, file); 

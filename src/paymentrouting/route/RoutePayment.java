@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Random;
+import java.util.Set;
 import java.util.Vector;
 
 import gtna.data.Single;
@@ -118,21 +119,21 @@ public class RoutePayment extends Metric{
 		}
 		return nparams;
 	}
-	
+
 	@Override
 	public void computeData(Graph g, Network n, HashMap<String, Metric> m) {
 		//init values
 		rand = new Random();
 		this.select.initRoutingInfo(g, rand);
 		edgeweights = (CreditLinks) g.getProperty("CREDIT_LINKS");
-        HashMap<Edge, Double> originalAll = new HashMap<Edge,Double>();
+		HashMap<Edge, Double> originalAll = new HashMap<Edge,Double>();
 		this.transactions = ((TransactionList)g.getProperty("TRANSACTION_LIST")).getTransactions();
 		Node[] nodes = g.getNodes();
-		
+
 		this.avHops = 0;
-		this.avHopsSucc = 0; 
+		this.avHopsSucc = 0;
 		this.avMess = 0;
-		this.avMessSucc = 0; 
+		this.avMessSucc = 0;
 		this.successFirst = 0;
 		this.success = 0;
 		long[] trys = new long[2];
@@ -141,161 +142,161 @@ public class RoutePayment extends Metric{
 		long[] mes = new long[2];
 		long[] mesSucc = new long[2];
 		int count = this.transactions.length;
-		int len = this.transactions.length/this.tInterval; 
-		int rest = this.transactions.length % this.tInterval; 
+		int len = this.transactions.length/this.tInterval;
+		int rest = this.transactions.length % this.tInterval;
 		if (rest == 0) {
-		    this.succTime = new double[len];
+			this.succTime = new double[len];
 		} else {
 			this.succTime = new double[len+1];
 		}
 		int slot = 0;
-		
+
 		//iterate over transactions
 		for (int i = 0; i < this.transactions.length; i++) {
 			Transaction tr = this.transactions[i];
 			int src = tr.getSrc();
 			int dst = tr.getDst();
-			if (log) System.out.println("Src-dst " + src + "," + dst); 
+			if (log) System.out.println("Src-dst " + src + "," + dst);
 			double val = tr.getVal();
-			boolean s = true; //successful, reset when failure encountered 
-	    	int h = 0; //hops
-	    	int x = 0; //messages
-	    	int maxhops = this.select.getDist().getTimeLock(src, dst); //maximal length of path 
-					    
-		//attempt at most trials times
-		    for (int t = 0; t < this.trials; t++) {
-		        //set initial set of current nodes and partial payment values to (src, totalVal) 
-		    	Vector<PartialPath> pps = new  Vector<PartialPath>();
-		    	//some routing algorithm split over multiple dimensions in the beginning (!= splitting during routing)
-		    	double[] splitVal = this.splitRealities(val, select.getDist().startR, rand);
-		    	for (int a = 0; a < select.getDist().startR; a++) {
-		    	     pps.add(new PartialPath(src, splitVal[a],new Vector<Integer>(),a));
-		        }
-		    	boolean[] excluded = new boolean[nodes.length];
-		    	
-		    	HashMap<Edge, Double> originalWeight = new HashMap<Edge,Double>(); //updated weights
-		
-		       //while current set of nodes is not empty 
-		    	while (!pps.isEmpty() && h < maxhops) {
-		    		if (log) {
-		    			System.out.println("Hop " + h + " with " + pps.size() + " links ");
-		    		}
-		    		Vector<PartialPath> next = new  Vector<PartialPath>();
-		            //iterate over set of current set of nodes 
-		            for (int j = 0; j < pps.size(); j++) {
-		            	PartialPath pp = pps.get(j);
-		            	int cur = pp.node;
-		            	//exclude nodes already on the path 
-		            	int pre = -1;
-		            	Vector<Integer> past = pp.pre;
-		            	if (past.size() > 0) {
-		            		pre = past.get(past.size()-1);
-		            	}
-		            	for (int l = 0; l < past.size(); l++) {
-		            		excluded[past.get(l)] = true;
-		            	}
-		            	
-		            	if (log) System.out.println("Routing at cur " + cur); 
-		                //getNextVals -> distribution of payment value over neighbors
-		                double[] partVals = this.select.getNextsVals(g, cur, dst, 
-		                		pre, excluded, this, pp.val, rand, pp.reality); 
-		                //reset excluded for future use 
-		                for (int l = 0; l < past.size(); l++) {
-		            		excluded[past.get(l)] = false;
-		            	}
-		               
-		                //add neighbors that are not the dest to new set of current nodes 
-		                if (partVals != null) {
-		                	past.add(cur);
-		                	int[] out = nodes[cur].getOutgoingEdges();
-		                	int zeros = 0; //delay -> stay at same node (happens as part of attacks, ignore if not in attack scenario) 
-		                	for (int k = 0; k < partVals.length; k++) {
-		                		if (partVals[k] > 0) {
-		                			x++;
-		                			//update vals 
-		                			Edge e = edgeweights.makeEdge(cur, out[k]);
-		    						double w = edgeweights.getWeight(e);
-		    						if (!originalWeight.containsKey(e)){
-		    							originalWeight.put(e, w); //store balance before this payment if later reset due to, e.g., failure
-		    						}
-		    						if (this.update && !originalAll.containsKey(e)) {
-		    							originalAll.put(e, w); //store original balance before this execution (for other runs with different parameters)
-		    						}
-		    						edgeweights.setWeight(cur,out[k],partVals[k]);//set to new balance 
-		                			if (out[k] != dst) {
-		                				next.add(new PartialPath(out[k], partVals[k], 
-		                						(Vector<Integer>)past.clone(),pp.reality)); //add new intermediary to path 
-		                			}
-		                			if (log) {
-		        		    			System.out.println("add link (" + cur + "," + out[k] + ") with val "+partVals[k]);
-		        		    		}
-		                		} else {
-		                			zeros++; //node performs an attack by waiting until it forwards (ignore if not in attack scenario) 
-		                		}
-		                	}
-		                	if (zeros == partVals.length) {
-		                		//stay at node itself 
-		                		next.add(new PartialPath(cur, pp.val, 
-                						(Vector<Integer>)past.clone(),pp.reality));
-		                	}
-		                } else {
-		                	//failure to find nodes to route to 
-		                	if (log) {
-		                		System.out.println("fail");
-		                		//throw new IllegalArgumentException();
-		                	}
-		                	s = false; 
-		                	//break;
-		                }
-		            }
-		            pps = this.merge(next); //merge paths: if the same payment arrived at a node via two paths: merge into one 
-		            h++; //increase hops 
-		            
-		            //reached maxhop count -> fail
-		            if (h == maxhops && !pps.isEmpty()) {
-		            	s = false; 
-		            }
-		    	}
-		    	
-		    	this.select.clear(); //clear any information related to finished payment 
-		    	if (!s) {
-		    		h--; 
-		    		//payments were not made -> return to previous weights
-		    		this.weightUpdate(edgeweights,originalWeight);
-		    		if (log) {
-		    			System.out.println("Failure");
-		    		}
-		    	} else {
-		    		if (!this.update) {
-		    			//return credit links to original state
-		    			this.weightUpdate(edgeweights,originalWeight);
-		    		}
-		    		//update stats for this transaction 
-			    	pathSucc = inc(pathSucc, h);
-			    	mesSucc = inc(mesSucc, x);
-			    	
-			    	this.succTime[slot]++;
-		    		this.success++;
-		    		if (t == 0) {
-		    			this.successFirst++;
-		    		}
-		    		trys = inc(trys,t);
-		    		if (log) {
-		    			System.out.println("Success");
-		    		}
-		    	}
-		    	path = inc(path, h);
-		    	mes = inc(mes,x);
-		    	if ((i+1) % this.tInterval == 0) {
-		    		this.succTime[slot] = this.succTime[slot]/this.tInterval;
-		    		slot++;
-		    	}
-		    }
-		    
-		    //recompute routing info, e.g., spanning trees
-		    if (this.recompute_epoch != Integer.MAX_VALUE && (i+1) % this.recompute_epoch == 0) {
-		    	this.select.initRoutingInfo(g, rand);
-		    }
+			boolean s = true; //successful, reset when failure encountered
+			int h = 0; //hops
+			int x = 0; //messages
+			int maxhops = this.select.getDist().getTimeLock(src, dst); //maximal length of path
+
+			//attempt at most trials times
+			for (int t = 0; t < this.trials; t++) {
+				//set initial set of current nodes and partial payment values to (src, totalVal)
+				Vector<PartialPath> pps = new  Vector<PartialPath>();
+				//some routing algorithm split over multiple dimensions in the beginning (!= splitting during routing)
+				double[] splitVal = this.splitRealities(val, select.getDist().startR, rand);
+				for (int a = 0; a < select.getDist().startR; a++) {
+					pps.add(new PartialPath(src, splitVal[a],new Vector<Integer>(),a));
+				}
+				boolean[] excluded = new boolean[nodes.length];
+
+				HashMap<Edge, Double> originalWeight = new HashMap<Edge,Double>(); //updated weights
+
+				//while current set of nodes is not empty
+				while (!pps.isEmpty() && h < maxhops) {
+					if (log) {
+						System.out.println("Hop " + h + " with " + pps.size() + " links ");
+					}
+					Vector<PartialPath> next = new  Vector<PartialPath>();
+					//iterate over set of current set of nodes
+					for (int j = 0; j < pps.size(); j++) {
+						PartialPath pp = pps.get(j);
+						int cur = pp.node;
+						//exclude nodes already on the path
+						int pre = -1;
+						Vector<Integer> past = pp.pre;
+						if (past.size() > 0) {
+							pre = past.get(past.size()-1);
+						}
+						for (int l = 0; l < past.size(); l++) {
+							excluded[past.get(l)] = true;
+						}
+
+						if (log) System.out.println("Routing at cur " + cur);
+						//getNextVals -> distribution of payment value over neighbors
+						double[] partVals = this.select.getNextsVals(g, cur, dst,
+								pre, excluded, this, pp.val, rand, pp.reality);
+						//reset excluded for future use
+						for (int l = 0; l < past.size(); l++) {
+							excluded[past.get(l)] = false;
+						}
+
+						//add neighbors that are not the dest to new set of current nodes
+						if (partVals != null) {
+							past.add(cur);
+							int[] out = nodes[cur].getOutgoingEdges();
+							int zeros = 0; //delay -> stay at same node (happens as part of attacks, ignore if not in attack scenario)
+							for (int k = 0; k < partVals.length; k++) {
+								if (partVals[k] > 0) {
+									x++;
+									//update vals
+									Edge e = edgeweights.makeEdge(cur, out[k]);
+									double w = edgeweights.getWeight(e);
+									if (!originalWeight.containsKey(e)){
+										originalWeight.put(e, w); //store balance before this payment if later reset due to, e.g., failure
+									}
+									if (this.update && !originalAll.containsKey(e)) {
+										originalAll.put(e, w); //store original balance before this execution (for other runs with different parameters)
+									}
+									edgeweights.setWeight(cur,out[k],partVals[k]);//set to new balance
+									if (out[k] != dst) {
+										next.add(new PartialPath(out[k], partVals[k],
+												(Vector<Integer>)past.clone(),pp.reality)); //add new intermediary to path
+									}
+									if (log) {
+										System.out.println("add link (" + cur + "," + out[k] + ") with val "+partVals[k]);
+									}
+								} else {
+									zeros++; //node performs an attack by waiting until it forwards (ignore if not in attack scenario)
+								}
+							}
+							if (zeros == partVals.length) {
+								//stay at node itself
+								next.add(new PartialPath(cur, pp.val,
+										(Vector<Integer>)past.clone(),pp.reality));
+							}
+						} else {
+							//failure to find nodes to route to
+							if (log) {
+								System.out.println("fail");
+								//throw new IllegalArgumentException();
+							}
+							s = false;
+							//break;
+						}
+					}
+					pps = this.merge(next); //merge paths: if the same payment arrived at a node via two paths: merge into one
+					h++; //increase hops
+
+					//reached maxhop count -> fail
+					if (h == maxhops && !pps.isEmpty()) {
+						s = false;
+					}
+				}
+
+				this.select.clear(); //clear any information related to finished payment
+				if (!s) {
+					h--;
+					//payments were not made -> return to previous weights
+					this.weightUpdate(edgeweights,originalWeight);
+					if (log) {
+						System.out.println("Failure");
+					}
+				} else {
+					if (!this.update) {
+						//return credit links to original state
+						this.weightUpdate(edgeweights,originalWeight);
+					}
+					//update stats for this transaction
+					pathSucc = inc(pathSucc, h);
+					mesSucc = inc(mesSucc, x);
+
+					this.succTime[slot]++;
+					this.success++;
+					if (t == 0) {
+						this.successFirst++;
+					}
+					trys = inc(trys,t);
+					if (log) {
+						System.out.println("Success");
+					}
+				}
+				path = inc(path, h);
+				mes = inc(mes,x);
+				if ((i+1) % this.tInterval == 0) {
+					this.succTime[slot] = this.succTime[slot]/this.tInterval;
+					slot++;
+				}
+			}
+
+			//recompute routing info, e.g., spanning trees
+			if (this.recompute_epoch != Integer.MAX_VALUE && (i+1) % this.recompute_epoch == 0) {
+				this.select.initRoutingInfo(g, rand);
+			}
 		}
 
 		//compute final stats
@@ -311,44 +312,97 @@ public class RoutePayment extends Metric{
 		this.success = this.success/this.transactions.length;
 		this.successFirst = this.successFirst/this.transactions.length;
 		if (rest > 0) {
-		   this.succTime[this.succTime.length-1] = this.succTime[this.succTime.length-1]/rest;
-		}		
-		
-		//reset weights for further routing algorithms evaluated 
-				if (this.update) {
-					this.weightUpdate(edgeweights, originalAll);
-				}
+			this.succTime[this.succTime.length-1] = this.succTime[this.succTime.length-1]/rest;
+		}
+
+		//reset weights for further routing algorithms evaluated
+		if (this.update) {
+			this.weightUpdate(edgeweights, originalAll);
+		}
 	}
+
+	// example routing
+//	@Override
+//	public void computeData(Graph g, Network n, HashMap<String, Metric> m) {
+//
+//		edgeweights = (CreditLinks) g.getProperty("CREDIT_LINKS");
+//		this.transactions = ((TransactionList)g.getProperty("TRANSACTION_LIST")).getTransactions();
+//		Node[] nodes = g.getNodes();
+//
+//		this.success = 0;
+//		long[] path = new long[2];
+//		int count = this.transactions.length;
+//
+//		//iterate over transactions
+//		for (Transaction tr : this.transactions) {
+//			int src = tr.getSrc();
+//			int dst = tr.getDst();
+//			double val = tr.getVal();
+//
+//			int hops = 0;
+//			int curr = src;
+//
+//			Set<Integer> visited = new HashSet<>();
+//			while (curr != dst){
+//				visited.add(curr);
+//
+//				int[] options = nodes[src].getOutgoingEdges();
+//				int selected = -1;
+//				for (int next : options){
+//					if (edgeweights.getWeight(curr, next) < val || visited.contains(next))
+//						continue;
+//					selected = next;
+//					if (next == dst){	// destination reached, routing successful
+//						this.success++;
+//						break;
+//					}
+//				}
+//				if (selected == -1)		// no options to forward, routing failed
+//					break;
+//				curr = selected;
+//				hops++;
+//			}
+//			path = inc(path, hops);
+//		}
+//
+////		compute final stats
+//		this.hopDistribution = new Distribution(path, count);
+//		this.success = this.success / count;
+//
+////		this.hopDistribution = new Distribution(new long[]{1, 2, 3, 4}, 10);
+////		this.success = 0.93;
+//	}
 	
 	@Override
 	public boolean writeData(String folder) {
 		boolean succ = true;
-		succ &= DataWriter.writeWithIndex(this.messageDistribution.getDistribution(),
-				this.key+"_MESSAGES", folder);
-		succ &= DataWriter.writeWithIndex(this.messageDistributionSucc.getDistribution(),
-				this.key+"_MESSAGES_SUCC", folder);
+//		succ &= DataWriter.writeWithIndex(this.messageDistribution.getDistribution(),
+//				this.key+"_MESSAGES", folder);
+//		succ &= DataWriter.writeWithIndex(this.messageDistributionSucc.getDistribution(),
+//				this.key+"_MESSAGES_SUCC", folder);
 		succ &= DataWriter.writeWithIndex(this.hopDistribution.getDistribution(),
 				this.key+"_HOPS", folder);
-		succ &= DataWriter.writeWithIndex(this.hopDistributionSucc.getDistribution(),
-				this.key+"_HOPS_SUCC", folder);
-		succ &= DataWriter.writeWithIndex(this.trysDistribution.getDistribution(),
-				this.key+"_TRYS", folder);
-		succ &= DataWriter.writeWithIndex(this.succTime, this.key+"_SUCCESS_TEMPORAL", folder);
+//		succ &= DataWriter.writeWithIndex(this.hopDistributionSucc.getDistribution(),
+//				this.key+"_HOPS_SUCC", folder);
+//		succ &= DataWriter.writeWithIndex(this.trysDistribution.getDistribution(),
+//				this.key+"_TRYS", folder);
+//		succ &= DataWriter.writeWithIndex(this.succTime, this.key+"_SUCCESS_TEMPORAL", folder);
 		
 		return succ;
 	}
 
 	@Override
 	public Single[] getSingles() {
-		Single m_av = new Single(this.key + "_MES_AV", this.avMess);
-		Single m_av_succ = new Single(this.key + "_MES_AV_SUCC", this.avMessSucc);
-		Single h_av = new Single(this.key + "_HOPS_AV", this.avHops);
-		Single h_av_succ = new Single(this.key + "_HOPS_AV_SUCC", this.avHopsSucc);
-		
-		Single s1 = new Single(this.key + "_SUCCESS_DIRECT", this.successFirst);
+//		Single m_av = new Single(this.key + "_MES_AV", this.avMess);
+//		Single m_av_succ = new Single(this.key + "_MES_AV_SUCC", this.avMessSucc);
+//		Single h_av = new Single(this.key + "_HOPS_AV", this.avHops);
+//		Single h_av_succ = new Single(this.key + "_HOPS_AV_SUCC", this.avHopsSucc);
+//
+//		Single s1 = new Single(this.key + "_SUCCESS_DIRECT", this.successFirst);
 		Single s = new Single(this.key + "_SUCCESS", this.success);
 
-		return new Single[]{m_av, m_av_succ, h_av, h_av_succ, s1, s};
+//		return new Single[]{m_av, m_av_succ, h_av, h_av_succ, s1, s};
+		return new Single[]{s};
 	}
 	
 
@@ -474,7 +528,7 @@ public class RoutePayment extends Metric{
 	 * @return
 	 */
 	public double getTotalCapacity(int s, int t) {
-		return this.edgeweights.getTotalCapacity(s, t); 
+		return this.edgeweights.getPot(s, t); 
 	}
     
 }
