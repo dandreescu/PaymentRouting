@@ -41,6 +41,9 @@ public class CreditLinks extends GraphProperty {
     		return weight[2]-weight[0];
     	} else {
     		double[] weight = this.getWeights(new Edge(dst,src));
+			if (weight == null) {
+				System.out.println("?");
+			}
     		return weight[2]-weight[0];
     	}
     }

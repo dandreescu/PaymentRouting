@@ -72,17 +72,24 @@ public class InitCapacities extends Transformation {
 	@Override
 	public Graph transform(Graph g) {
 		//init variables 
-		Node[] nodes = g.getNodes(); 
+		Node[] nodes = g.getNodes();
+		System.out.println("node count: "+nodes.length);
 		Random rand = new Random();
 		HashMap<Edge, double[]> weights = new HashMap<Edge, double[]>(); 
 		CreditLinks links = new CreditLinks();
+		int e = 0;int un = 0;
 		
 		//iterate over links and add 
 		for (int i = 0; i < nodes.length; i++) {
 			int[] out = nodes[i].getOutgoingEdges();
+			e+=out.length;
 			
 			for (int k = 0; k < out.length; k++) {
+				if (out[k] == i) {
+					System.out.println("wtf: "+i);
+				}
 				if (out[k] > i) {
+					un++;
 					double lower = -1*getNextVal(rand);
 					double upper = getNextVal(rand); 
 					double[] weight = new double[] {lower,0,upper};
@@ -90,6 +97,8 @@ public class InitCapacities extends Transformation {
 				}
 			}
 		}
+		System.out.println("edge count: "+e);
+		System.out.println("unique count: "+un);
 		links.setWeights(weights);
 		g.addProperty("CREDIT_LINKS", links);
 		

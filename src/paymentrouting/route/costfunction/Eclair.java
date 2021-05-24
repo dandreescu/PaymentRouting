@@ -5,14 +5,14 @@ import treeembedding.credit.CreditLinks;
 
 public class Eclair implements CostFunction {
 
-  static double CBR = 648601;
+  static double CBR = 684609;
 
-  static double MIN_DELAY = 0;//9;
-  static double MAX_DELAY = 10;//2016;
+  static double MIN_DELAY = 9;
+  static double MAX_DELAY = 2016;
   static double MIN_CAP = 0;
   static double MAX_CAP = 100000000;
-  static double MIN_AGE = 0;//CBR - 8640;
-  static double MAX_AGE = 10;//CBR;
+  static double MIN_AGE = CBR - 8640;
+  static double MAX_AGE = CBR;
   static double DELAY_RATIO = 0.15;
   static double CAPACITY_RATIO = 0.5;
   static double AGE_RATIO = 0.35;
