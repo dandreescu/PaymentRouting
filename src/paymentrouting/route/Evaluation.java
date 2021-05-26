@@ -57,7 +57,7 @@ public class Evaluation {
 			m[k++] = new RouteBoomerang(REDUNDANT, u);
 			m[k++] = new RouteBoomerang(REDUNDANT_RETRY, u);
 		}
-		Series.generate(net, m, 10);
+		Series.generate(net, m, 2);
 	}
 	
 	public static void attackEval() {

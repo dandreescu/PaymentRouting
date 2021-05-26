@@ -4,6 +4,7 @@ import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.REDUNDANT
 import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.REDUNDANT_RETRY;
 import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.RETRY;
 
+import java.util.Random;
 import paymentrouting.route.concurrency.RouteBoomerang.BoomType;
 
 public class BoomPayment {
@@ -35,7 +36,7 @@ public class BoomPayment {
       rPay.incSucc(timeNow - sendingTime, amt);  // whole payment successful
       for (BoomTr p : peers)
         p.cancel(true);         // stop all (outstanding)
-      rPay.startBoomTr(peers[0].getSrc(), timeNow); // and tell the node to start a new transaction from the backlog
+      rPay.startBoomTr(peers[0].getSrc(), timeNow+150); // and tell the node to start a new transaction from the backlog
     }
   }
 
@@ -51,8 +52,11 @@ public class BoomPayment {
       for (BoomTr p : peers) {
         p.cancel(false);         // stop all (outstanding)
       }
-      rPay.startBoomTr(peers[0].getSrc(), timeNow); // and tell the node to start a new transaction from the backlog
+      rPay.startBoomTr(peers[0].getSrc(), timeNow +150); // and tell the node to start a new transaction from the backlog
     }
+  }
+  private double randLat() { // todo graph transformation maybe? (boomerang does have a different lat each time though)
+    return 50d + new Random().nextInt(101);
   }
 
 }

@@ -41,8 +41,10 @@ public class BoomTr implements Comparable<BoomTr> {
     boolean ok = parent.rPay.lock(path[i], path[i + 1], val);  // lock collateral
     if (ok)
       i++;  // proceed to next node on path
-    else
+    else {
       parent.anotherFail(time);
+      cancel(false);
+    }
   }
 
   private double randLat() { // todo graph transformation maybe? (boomerang does have a different lat each time though)
@@ -50,6 +52,7 @@ public class BoomTr implements Comparable<BoomTr> {
   }
 
   public void cancel(boolean successful) {
+    if (cancelled) return;
     cancelled = true;   // will be ignored when taken out of the queue
     double time = this.time;
     for (int j = i; j > 0; j--) { // from current to src
