@@ -3,6 +3,8 @@ package paymentrouting.route.concurrency;
 import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.REDUNDANT;
 import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.REDUNDANT_RETRY;
 import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.RETRY;
+import static paymentrouting.route.concurrency.Status.DONE;
+import static paymentrouting.route.concurrency.Status.READY;
 
 import gtna.data.Single;
 import gtna.graph.Edge;
@@ -13,8 +15,10 @@ import gtna.networks.Network;
 import gtna.util.parameter.IntParameter;
 import gtna.util.parameter.Parameter;
 import gtna.util.parameter.StringParameter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
@@ -104,8 +108,8 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
 
     while (!trQueue.isEmpty()) {
       BoomTr btr = trQueue.poll();  // next event
-      if (btr.cancelled)
-        continue;
+      if (btr.status == DONE || btr.status == READY) // DONE means ignore, READY mean waiting at the dest for execute/rollback
+          continue;
       unlockAllUntil(btr.time);     // unlock collateral
       endTime = btr.time;           // only for stats, endtime of last transaction
       btr.progress();               // tr makes a step

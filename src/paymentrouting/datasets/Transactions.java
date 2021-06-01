@@ -3,6 +3,9 @@ package paymentrouting.datasets;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import gtna.graph.Graph;
@@ -26,7 +29,7 @@ public class Transactions extends Transformation {
 	boolean onlyPossible; 
 	int rec;
 	int fl;
-	double[] ripple;
+	List<Double> ripple;
 
 	public Transactions (String rippleFile, int n) {
 		super("TRANSACTIONS", new Parameter[] {
@@ -118,9 +121,9 @@ public class Transactions extends Transformation {
 			double r = rand.nextDouble();
 		switch (this.td) {
 		case RIPPLE:
-			res = ripple[rand.nextInt(ripple.length)];	// random uniform sample
-			while (res <= 0d)				// try again
-				res = ripple[rand.nextInt(ripple.length)];
+			res = ripple.get(rand.nextInt(ripple.size()));	// random uniform sample
+//			while (res <= 0d)				// try again
+//				res = ripple[rand.nextInt(ripple.length)];
 		break;
 		case EXP: res = - Math.log(1-r)/this.parameter; 
 		break;
@@ -210,13 +213,15 @@ public class Transactions extends Transformation {
 
 	private void readRipple(String file) {
 		int i = 0;
-		ripple = new double[1000000];
+		ripple = new ArrayList();
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(file));
 			String line;
 			while ((line = br.readLine()) != null) {
 				String[] toks = line.split(",");
-				ripple[i++] = Double.parseDouble(toks[2]);
+				double val = Double.parseDouble(toks[2]);
+				if(val>0)
+				ripple.add(val);
 			}
 			br.close();
 		} catch (IOException e) {
