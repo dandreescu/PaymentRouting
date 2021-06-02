@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
@@ -33,12 +34,14 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
   PriorityQueue<BoomTr> trQueue;
   Queue[] backlog;
   Paths paths;
-  int v = 25, u;
+  int v = 25, u; //todo DON'T FORGET TO CHANGE to 25
   BoomType protocol;
 
   double ttc = 0;
   double volume = 0;
   double endTime = 0;
+
+//  Map<BoomPayment, List<String>> paymentLog;
 
   public enum BoomType {
     RETRY, REDUNDANT, REDUNDANT_RETRY
@@ -53,7 +56,13 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
     this.u = u;
   }
 
+//  public void logPayment(BoomPayment p, String msg) {
+//    List<String> myLog = paymentLog.get(p);
+//    myLog.add(msg + "; nec = " + p.necessary + "; rem = " + p.remainingRetries + "; ong = " + p.ongoing);
+//  }
+
   public void preprocess(Graph g) {
+//    paymentLog = new HashMap<>();
     rand = new Random();
     edgeweights = (CreditLinks) g.getProperty("CREDIT_LINKS");
     transactions = ((TransactionList)g.getProperty("TRANSACTION_LIST")).getTransactions();
@@ -127,16 +136,17 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
     double valPerTr = val / v;              // split payment into v
 
     BoomTr[] peers = new BoomTr[u + v];     // tiny sibling transactions (even if some do not start yet, in case of RETRY)
-    BoomPayment parent = new BoomPayment(v, peers, protocol, time, val, this); // parent coordinates all
-
+    BoomPayment parent = new BoomPayment(v, peers, time, val, this); // parent coordinates all
+//    paymentLog.put(parent, new ArrayList<>());
     for (int j = 0; j < v + u; j++) {            // for all pieces
       int[] path = paths.get(src, dst, rand);    // random path out of k-edge-disjoint
-      BoomTr btr = new BoomTr(time, valPerTr, path, parent);
+      BoomTr btr = new BoomTr(valPerTr, path, parent);
       peers[j] = btr;
 
       if((protocol == REDUNDANT )     // redundant -> send all from the start
           || (protocol == RETRY && j < v)   // retry -> send first v
           || (protocol == REDUNDANT_RETRY && j < v + Math.min(10, u))) { // at most 10 redundant
+        btr.start(time);
         this.trQueue.add(btr);
       }
     }

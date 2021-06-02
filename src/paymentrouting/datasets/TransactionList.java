@@ -68,9 +68,9 @@ public class TransactionList extends GraphProperty {
 				dst = Integer.parseInt(parts[3]); 
 			} else {
 				ti = i; 
-				value = Double.parseDouble(parts[0]);
-				src = Integer.parseInt(parts[1]);
-				dst = Integer.parseInt(parts[2]); 
+				value = Double.parseDouble(parts[2]);
+				src = Integer.parseInt(parts[0]);
+				dst = Integer.parseInt(parts[1]); // todo flip index
 			}
 			tx = new Transaction(ti,value,src,dst);
 			this.transactions[i] = tx; 

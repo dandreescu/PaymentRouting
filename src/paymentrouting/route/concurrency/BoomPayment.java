@@ -1,71 +1,61 @@
 package paymentrouting.route.concurrency;
 
-import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.REDUNDANT_RETRY;
-import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.RETRY;
+import static paymentrouting.route.concurrency.Status.NOT_STARTED;
+import static paymentrouting.route.concurrency.Status.ONGOING;
+import static paymentrouting.route.concurrency.Status.READY;
 
+import java.util.Arrays;
+import java.util.stream.Stream;
 import paymentrouting.route.concurrency.RouteBoomerang.BoomType;
 
 public class BoomPayment {
   double sendingTime;
-  int retried;
   BoomTr[] peers;
-  int failed;
-  int successful;
   int necessary;
   double amt;
   RouteBoomerang rPay;
-  private double lastOngoingTime;
-  int ongoing;
+  double lastUnlockStartedTime;
 
-  public BoomPayment(int necessary, BoomTr[] peers, BoomType type, double sendingTime, double amt, RouteBoomerang rPay) {
-    this.necessary = necessary;                                 // number of transactions that add up to the total (v)
-    this.peers = peers;                                         // array of the tiny transactions after splitting
-    this.sendingTime = sendingTime;                             // needed for ttc
-
-    if(type == REDUNDANT_RETRY)
-      this.retried = Math.min(10, peers.length - necessary);    // v + 10 already sent (consider 10 as already retried)
-    else if(type == RETRY)
-      this.retried = 0;                                 // v already sent
-    else
-      this.retried = peers.length - necessary;       // v + u already sent (consider u as already retried)
-
+  public BoomPayment(int v, BoomTr[] peers, double sendingTime, double amt, RouteBoomerang rPay) {
+    this.necessary = v;                       // number of transactions that add up to the total (v)
+    this.peers = peers;                       // array of the tiny transactions after splitting
+    this.sendingTime = sendingTime;           // needed for ttc
     this.amt = amt;
     this.rPay = rPay;
-    this.ongoing = necessary + retried;
   }
 
   public void anotherSuccess(double timeNow) {
-    successful++;                                         // number of successful tiny payments
-    if (successful == necessary) {
-      rPay.incSucc(timeNow - sendingTime, amt);       // whole payment successful
-      for (int i = 0; i < necessary + retried; i++) {
-        BoomTr p = peers[i];
-        p.sendExecute();
-      }
+    // check success
+    if (filter(READY).count() == necessary) {
+      rPay.incSucc(timeNow - sendingTime, amt);     // whole payment successful
+      filter(READY).forEach(BoomTr::execute);
+      filter(ONGOING).forEach(BoomTr::abort);
     }
   }
 
   public void anotherFail(double timeNow) {
-    failed++;
-    if (failed + necessary > peers.length) {            // if there is no chance of success
-      for (int i = 0; i < necessary + retried; i++) {
-        BoomTr p = peers[i];
-        p.sendAbort();
-      }
-    } else if (retried + necessary < peers.length) {    // if we can still retry some
-        BoomTr newTr = peers[necessary + retried];      // next available tiny transaction
-        newTr.time = timeNow;                           // starts now
-        rPay.trQueue.add(newTr);
-        retried++;                                      // use another retry
-        ongoing++;
-      }
+    // check fail
+    if (filter(ONGOING, READY, NOT_STARTED).count() < necessary) {    // if there is no chance of success
+      filter(READY).forEach(BoomTr::rollback);
+      filter(ONGOING).forEach(BoomTr::abort);
+      return;
     }
-
-
-  public void decrementOngoing(double time) {
-    this.lastOngoingTime = Math.max(lastOngoingTime, time);    // time when the last ongoing tr was cancelled
-    ongoing--;
-    if (ongoing == 0)
-      rPay.startBoomTr(peers[0].getSrc(), lastOngoingTime);     // start new payment when no more ongoing
+    // maybe retry
+    if (filter(NOT_STARTED).count() > 0) {                      // if we can still retry any
+      BoomTr newTr = filter(NOT_STARTED).findFirst().get();      // next available tiny transaction
+      newTr.start(timeNow);                           // starts now
+      rPay.trQueue.add(newTr);
+    }
   }
+
+  public void updateLastUnlockStartTime(double timeNow) {
+    this.lastUnlockStartedTime = Math.max(lastUnlockStartedTime, timeNow);    // time when the last ongoing tr was cancelled
+      // maybe start next
+    if (filter(ONGOING).count() == 0)
+      rPay.startBoomTr(peers[0].getSrc(), lastUnlockStartedTime);     // start new payment when no more ongoing
+  }
+
+    private Stream<BoomTr> filter (Status... statuses) {
+      return Arrays.stream(peers).filter(bTr -> Arrays.asList(statuses).contains(bTr.status));
+    }
 }

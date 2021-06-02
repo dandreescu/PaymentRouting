@@ -50,7 +50,7 @@ public class Evaluation {
 				new InitPaths(25)
 				};
 		Network net = new WattsStrogatz(100,8, 0.8, trans);
-
+//
 //		Network net = new ReadableFile("DS", "DS", "data/simple/simple2_graph.txt", trans);
 //		String file  = "lightning/boom.txt";
 //		Network net = new ReadableFile("LIGHTNING", "LIGHTNING", file, null);
@@ -58,7 +58,9 @@ public class Evaluation {
 		int k = 0;
 		for (int u: new int[]{
 				0,
-				10, 20, 75,
+//				1,
+				10,
+				20, 75,
 				150
 		}) {
 			m[k++] = new RouteBoomerang(RETRY, u);
