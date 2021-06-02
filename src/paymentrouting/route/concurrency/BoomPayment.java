@@ -15,6 +15,7 @@ public class BoomPayment {
   double amt;
   RouteBoomerang rPay;
   double lastUnlockStartedTime;
+   boolean succ;
 
   public BoomPayment(int v, BoomTr[] peers, double sendingTime, double amt, RouteBoomerang rPay) {
     this.necessary = v;                       // number of transactions that add up to the total (v)
@@ -27,6 +28,7 @@ public class BoomPayment {
   public void anotherSuccess(double timeNow) {
     // check success
     if (filter(READY).count() == necessary) {
+      succ = true;
       rPay.incSucc(timeNow - sendingTime, amt);     // whole payment successful
       filter(READY).forEach(BoomTr::execute);
       filter(ONGOING).forEach(BoomTr::abort);

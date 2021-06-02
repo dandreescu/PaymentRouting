@@ -56,6 +56,7 @@ public class BoomTr implements Comparable<BoomTr> {
   }
 
   public void progress() {
+    parent.rPay.logPayment(this, "B_prog");
     switch (status) {
       case ONGOING:
         route();
@@ -69,16 +70,22 @@ public class BoomTr implements Comparable<BoomTr> {
         assert false;   // shouldn't happen
         break;
     }
+
+    parent.rPay.logPayment(this, "A_prog");
   }
 
   public void execute() {
+    parent.rPay.logPayment(this, "B_exec");
     assert (status == READY && isDestination());
     unlock(true);
+    parent.rPay.logPayment(this, "A_exec");
   }
 
   public void rollback() {
+    parent.rPay.logPayment(this, "B_roll");
     assert (status == ABORTED || status == READY);
     unlock(false);
+    parent.rPay.logPayment(this, "A_roll");
   }
 
   private void route() {
@@ -120,7 +127,7 @@ public class BoomTr implements Comparable<BoomTr> {
   }
 
   public static double randLat() {
-    return 50d + new Random(1234).nextInt(101);
+    return 50d + new Random().nextInt(101);
   }
 
   @Override
