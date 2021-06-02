@@ -56,7 +56,7 @@ public class BoomTr implements Comparable<BoomTr> {
   }
 
   public void progress() {
-    parent.rPay.logPayment(this, "B_prog");
+//    parent.rPay.logPayment(this, "B_prog");
     switch (status) {
       case ONGOING:
         route();
@@ -71,30 +71,30 @@ public class BoomTr implements Comparable<BoomTr> {
         break;
     }
 
-    parent.rPay.logPayment(this, "A_prog");
+//    parent.rPay.logPayment(this, "A_prog");
   }
 
   public void execute(double timeNow) {
     this.time = timeNow;
-    parent.rPay.logPayment(this, "B_exec");
+//    parent.rPay.logPayment(this, "B_exec");
     assert (status == READY && isDestination());
     unlock(true);
-    parent.rPay.logPayment(this, "A_exec");
+//    parent.rPay.logPayment(this, "A_exec");
   }
 
   public void rollback() {
-    parent.rPay.logPayment(this, "B_roll");
+//    parent.rPay.logPayment(this, "B_roll");
     assert (status == ABORTED);
     unlock(false);
-    parent.rPay.logPayment(this, "A_roll");
+//    parent.rPay.logPayment(this, "A_roll");
   }
 
   public void rollback(double timeNow) {
     this.time = timeNow;
-    parent.rPay.logPayment(this, "B_roll_parent");
+//    parent.rPay.logPayment(this, "B_roll_parent");
     assert (status == READY);
     unlock(false);
-    parent.rPay.logPayment(this, "A_roll_parent");
+//    parent.rPay.logPayment(this, "A_roll_parent");
   }
 
   private void route() {
@@ -116,6 +116,7 @@ public class BoomTr implements Comparable<BoomTr> {
   }
 
   private void unlock(boolean successful) {
+    setDone();
     parent.updateLastUnlockStartTime(time);    // one less ongoing tr, record current time, NOT unlock time
     double time = this.time;
     for (int j = i; j > 0; j--) {     // from current to src
@@ -124,7 +125,6 @@ public class BoomTr implements Comparable<BoomTr> {
           new Edge(path[j - 1], path[j]), time, successful, val);
       parent.rPay.qLocks.add(lock);
     }
-    setDone();
   }
 
   public int getSrc(){

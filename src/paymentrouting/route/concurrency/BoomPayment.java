@@ -1,5 +1,6 @@
 package paymentrouting.route.concurrency;
 
+import static paymentrouting.route.concurrency.Status.ABORTED;
 import static paymentrouting.route.concurrency.Status.NOT_STARTED;
 import static paymentrouting.route.concurrency.Status.ONGOING;
 import static paymentrouting.route.concurrency.Status.READY;
@@ -53,7 +54,7 @@ public class BoomPayment {
   public void updateLastUnlockStartTime(double timeNow) {
     this.lastUnlockStartedTime = Math.max(lastUnlockStartedTime, timeNow);    // time when the last ongoing tr was cancelled
       // maybe start next
-    if (filter(ONGOING).count() == 0)
+    if (filter(ONGOING, ABORTED, READY).count() == 0)
       rPay.startBoomTr(peers[0].getSrc(), lastUnlockStartedTime);     // start new payment when no more ongoing
   }
 
