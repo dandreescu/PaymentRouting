@@ -30,7 +30,7 @@ public class BoomPayment {
     if (filter(READY).count() == necessary) {
       succ = true;
       rPay.incSucc(timeNow - sendingTime, amt);     // whole payment successful
-      filter(READY).forEach(BoomTr::execute);
+      filter(READY).forEach(boomTr -> boomTr.execute(timeNow));
       filter(ONGOING).forEach(BoomTr::abort);
     }
   }
@@ -38,7 +38,7 @@ public class BoomPayment {
   public void anotherFail(double timeNow) {
     // check fail
     if (filter(ONGOING, READY, NOT_STARTED).count() < necessary) {    // if there is no chance of success
-      filter(READY).forEach(BoomTr::rollback);
+      filter(READY).forEach(boomTr -> boomTr.rollback(timeNow));
       filter(ONGOING).forEach(BoomTr::abort);
       return;
     }

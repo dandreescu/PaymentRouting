@@ -74,7 +74,8 @@ public class BoomTr implements Comparable<BoomTr> {
     parent.rPay.logPayment(this, "A_prog");
   }
 
-  public void execute() {
+  public void execute(double timeNow) {
+    this.time = timeNow;
     parent.rPay.logPayment(this, "B_exec");
     assert (status == READY && isDestination());
     unlock(true);
@@ -83,9 +84,17 @@ public class BoomTr implements Comparable<BoomTr> {
 
   public void rollback() {
     parent.rPay.logPayment(this, "B_roll");
-    assert (status == ABORTED || status == READY);
+    assert (status == ABORTED);
     unlock(false);
     parent.rPay.logPayment(this, "A_roll");
+  }
+
+  public void rollback(double timeNow) {
+    this.time = timeNow;
+    parent.rPay.logPayment(this, "B_roll_parent");
+    assert (status == READY);
+    unlock(false);
+    parent.rPay.logPayment(this, "A_roll_parent");
   }
 
   private void route() {

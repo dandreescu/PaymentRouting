@@ -18,6 +18,7 @@ import gtna.util.parameter.StringParameter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,7 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
   double volume = 0;
   double endTime = 0;
 
-  Map<BoomTr, List<String>> paymentLog;
+  Map<BoomPayment, Map<BoomTr, List<String >>> paymentLog;
 
   public enum BoomType {
     RETRY, REDUNDANT, REDUNDANT_RETRY
@@ -58,13 +59,14 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
   }
 
   public void logPayment(BoomTr p, String msg) {
-    List<String> myLog = paymentLog.get(p);
+    Map<BoomTr, List<String >> myMap = paymentLog.get(p.parent);
+    List<String> myLog = myMap.get(p);
     myLog.add(p.parent.succ + " " + p.parent.amt + ": " + msg + ": time = " + p.time + "; status = " + p.status + "; i = " + p.i + "; path =" +
         Arrays.toString(p.path));
   }
 
   public void preprocess(Graph g) {
-    paymentLog = new HashMap<BoomTr, List<String>>();
+    paymentLog = new HashMap<>();
     rand = new Random();
     edgeweights = (CreditLinks) g.getProperty("CREDIT_LINKS");
     transactions = ((TransactionList)g.getProperty("TRANSACTION_LIST")).getTransactions();
@@ -139,12 +141,13 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
 
     BoomTr[] peers = new BoomTr[u + v];     // tiny sibling transactions (even if some do not start yet, in case of RETRY)
     BoomPayment parent = new BoomPayment(v, peers, time, val, this); // parent coordinates all
-
+    Map<BoomTr, List<String>> myMap = new HashMap<>();
+    paymentLog.put(parent, myMap);
     for (int j = 0; j < v + u; j++) {            // for all pieces
       int[] path = paths.get(src, dst, rand);    // random path out of k-edge-disjoint
       BoomTr btr = new BoomTr(valPerTr, path, parent);
       peers[j] = btr;
-      paymentLog.put(btr, new ArrayList<>());
+      myMap.put(btr, new ArrayList<>());
       if((protocol == REDUNDANT )     // redundant -> send all from the start
           || (protocol == RETRY && j < v)   // retry -> send first v
           || (protocol == REDUNDANT_RETRY && j < v + Math.min(10, u))) { // at most 10 redundant

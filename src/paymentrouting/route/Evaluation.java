@@ -45,21 +45,21 @@ public class Evaluation {
 		Config.overwrite("MAIN_DATA_FOLDER", "./data/boomerang/");
 //
 		Transformation[] trans = new Transformation[] {
-//				new InitCapacities(100, 1000),
-//				new Transactions("lightning/ripple_val.csv", 1),
+				new InitCapacities(100, 1000),
+				new Transactions("lightning/ripple_val.csv", 100),
 				new InitPaths(25)
 				};
-//		Network net = new WattsStrogatz(100,8, 0.8, trans);
-//
-		Network net = new ReadableFile("DS", "DS", "data/simple/simple2_graph.txt", trans);
+		Network net = new WattsStrogatz(100,8, 0.8, trans);
+
+//		Network net = new ReadableFile("DS", "DS", "data/simple/simple2_graph.txt", trans);
 //		String file  = "lightning/boom.txt";
 //		Network net = new ReadableFile("LIGHTNING", "LIGHTNING", file, null);
 		Metric[] m = new Metric[3];
 		int k = 0;
 		for (int u: new int[]{
 //				0,
-				1,
-//				10,
+//				1,
+				5,
 //				20, 75,
 //				150
 		}) {
