@@ -1,6 +1,7 @@
 package paymentrouting.route.concurrency;
 
 import static paymentrouting.route.concurrency.Status.ABORTED;
+import static paymentrouting.route.concurrency.Status.DONE;
 import static paymentrouting.route.concurrency.Status.NOT_STARTED;
 import static paymentrouting.route.concurrency.Status.ONGOING;
 import static paymentrouting.route.concurrency.Status.READY;
@@ -16,7 +17,8 @@ public class BoomPayment {
   double amt;
   RouteBoomerang rPay;
   double lastUnlockStartedTime;
-   boolean succ;
+  boolean succ;
+  boolean fail;
 
   public BoomPayment(int v, BoomTr[] peers, double sendingTime, double amt, RouteBoomerang rPay) {
     this.necessary = v;                       // number of transactions that add up to the total (v)
@@ -39,8 +41,10 @@ public class BoomPayment {
   public void anotherFail(double timeNow) {
     // check fail
     if (filter(ONGOING, READY, NOT_STARTED).count() < necessary) {    // if there is no chance of success
+      //abort ABORTED??
       filter(READY).forEach(boomTr -> boomTr.rollback(timeNow));
       filter(ONGOING).forEach(BoomTr::abort);
+      fail = true;
       return;
     }
     // maybe retry
@@ -52,10 +56,17 @@ public class BoomPayment {
   }
 
   public void updateLastUnlockStartTime(double timeNow) {
-    this.lastUnlockStartedTime = Math.max(lastUnlockStartedTime, timeNow);    // time when the last ongoing tr was cancelled
-      // maybe start next
-    if (filter(ONGOING, ABORTED, READY).count() == 0)
-      rPay.startBoomTr(peers[0].getSrc(), lastUnlockStartedTime);     // start new payment when no more ongoing
+    this.lastUnlockStartedTime =
+        Math.max(lastUnlockStartedTime, timeNow);    // time when the last ongoing tr was cancelled
+    // maybe start next
+    if (filter(ONGOING, ABORTED, READY).count() == 0) {
+      if (!fail && !succ) {
+        System.out.println("wtf");
+      }
+      rPay.startBoomTr(peers[0].getSrc(),
+          lastUnlockStartedTime);     // start new payment when no more ongoing
+
+    }
   }
 
     private Stream<BoomTr> filter (Status... statuses) {

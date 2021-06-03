@@ -12,6 +12,7 @@ import java.util.Random;
 
 public class BoomTr implements Comparable<BoomTr> {
 
+  private static final Random RAND = new Random();
   Status status;
   double time;
   double val;
@@ -136,7 +137,7 @@ public class BoomTr implements Comparable<BoomTr> {
   }
 
   public static double randLat() {
-    return 50d + new Random().nextInt(101);
+    return (50d + RAND.nextInt(101))*1.17777d;
   }
 
   @Override

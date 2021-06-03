@@ -54,18 +54,20 @@ public class Evaluation {
 //		Network net = new ReadableFile("DS", "DS", "data/simple/simple2_graph.txt", trans);
 //		String file  = "lightning/boom.txt";
 //		Network net = new ReadableFile("LIGHTNING", "LIGHTNING", file, null);
-		Metric[] m = new Metric[4];
+		Metric[] m = new Metric[6];
 		int k = 0;
 		for (int u: new int[]{
 				0,
 //				1,
 //				10,
-//				20, 75,
-				150
+//				20,
+//				75,
+				150,
+//				250
 		}) {
 			m[k++] = new RouteBoomerang(RETRY, u);
 			m[k++] = new RouteBoomerang(REDUNDANT, u);
-//			m[k++] = new RouteBoomerang(REDUNDANT_RETRY, u);
+			m[k++] = new RouteBoomerang(REDUNDANT_RETRY, u);
 		}
 		Series.generate(net, m, 1);
 	}

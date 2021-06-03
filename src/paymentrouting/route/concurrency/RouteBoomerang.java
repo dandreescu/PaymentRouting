@@ -36,12 +36,12 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
   PriorityQueue<BoomTr> trQueue;
   Queue[] backlog;
   Paths paths;
-  int v = 2, u; //todo DON'T FORGET TO CHANGE to 25
+  int v = 25, u; //todo DON'T FORGET TO CHANGE to 25
   BoomType protocol;
 
   double ttc = 0;
   double volume = 0;
-  double endTime = 0;
+  Map<Integer, Double> endTime;
 
 //  Map<BoomPayment, Map<BoomTr, List<String >>> paymentLog;
 
@@ -67,6 +67,7 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
 
   public void preprocess(Graph g) {
 //    paymentLog = new HashMap<>();
+    endTime = new HashMap<>();
     rand = new Random();
     edgeweights = (CreditLinks) g.getProperty("CREDIT_LINKS");
     transactions = ((TransactionList)g.getProperty("TRANSACTION_LIST")).getTransactions();
@@ -80,7 +81,7 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
 
     ttc = 0;
     volume = 0;
-    endTime = 0;
+//    endTime = 0;
     success = 0;
   }
 
@@ -121,13 +122,18 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
 
     while (!trQueue.isEmpty()) {
       BoomTr btr = trQueue.poll();  // next event
+      endTime.put(btr.getSrc(), btr.time);// only for stats, endtime of last transaction
       if (btr.status == DONE || btr.status == READY) // DONE means ignore, READY mean waiting at the dest for execute/rollback
           continue;
       unlockAllUntil(btr.time);     // unlock collateral
-      endTime = btr.time;           // only for stats, endtime of last transaction
       btr.progress();               // tr makes a step
       trQueue.add(btr);
     }
+    assert (endTime.keySet().size() == g.getNodeCount());
+    double sumEndTime = endTime.values().stream()
+        .mapToDouble(Double::doubleValue).map(d -> d / 1000d).sum();
+
+    System.out.println("AVG SIMULATION TIME: "+sumEndTime);
   }
 
   public void startBoomTr(int src, double time) {
@@ -141,13 +147,13 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
 
     BoomTr[] peers = new BoomTr[u + v];     // tiny sibling transactions (even if some do not start yet, in case of RETRY)
     BoomPayment parent = new BoomPayment(v, peers, time, val, this); // parent coordinates all
-    Map<BoomTr, List<String>> myMap = new HashMap<>();
+//    Map<BoomTr, List<String>> myMap = new HashMap<>();
 //    paymentLog.put(parent, myMap);
     for (int j = 0; j < v + u; j++) {            // for all pieces
       int[] path = paths.get(src, dst, rand);    // random path out of k-edge-disjoint
       BoomTr btr = new BoomTr(valPerTr, path, parent);
       peers[j] = btr;
-      myMap.put(btr, new ArrayList<>());
+//      myMap.put(btr, new ArrayList<>());
       if((protocol == REDUNDANT )     // redundant -> send all from the start
           || (protocol == RETRY && j < v)   // retry -> send first v
           || (protocol == REDUNDANT_RETRY && j < v + Math.min(10, u))) { // at most 10 redundant
