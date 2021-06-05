@@ -1,13 +1,16 @@
 package paymentrouting.route.concurrency;
 
 
+import static paymentrouting.route.concurrency.Status.DONE_NEG;
+import static paymentrouting.route.concurrency.Status.DONE_POS;
 import static paymentrouting.route.concurrency.Status.NOT_STARTED;
-import static paymentrouting.route.concurrency.Status.READY;
-import static paymentrouting.route.concurrency.Status.DONE;
 import static paymentrouting.route.concurrency.Status.ONGOING;
 import static paymentrouting.route.concurrency.Status.ABORTED;
+import static paymentrouting.route.concurrency.Status.READY_NEG;
+import static paymentrouting.route.concurrency.Status.READY_POS;
 
 import gtna.graph.Edge;
+import java.util.Arrays;
 import java.util.Random;
 
 public class BoomTr implements Comparable<BoomTr> {
@@ -46,78 +49,68 @@ public class BoomTr implements Comparable<BoomTr> {
     status = ABORTED;
   }
 
-  public void setReady() {
-    assert (status == ONGOING);
-    this.status = READY;
-  }
-
-  public void setDone() {
-    assert (status == ABORTED || status == READY);
-    this.status = DONE;
-  }
-
   public void progress() {
-//    parent.rPay.logPayment(this, "B_prog");
+//    parent.rPay.logTime(getSrc(), "prog: "+time + " "+status+" "+parent.toString().split("@")[1]);
+    print("prog...");
+//    parent.rPay.logPayment(this, "prog: "+time + "\t"+status);
     switch (status) {
       case ONGOING:
         route();
         break;
       case ABORTED:
-        rollback();     // was aborted sometime between prev hop and now
+        unlock(false);     // was aborted sometime between prev hop and now
         break;
       case NOT_STARTED:
-      case DONE:        // DONE means just ignore
-      case READY:
-        assert false;   // shouldn't happen
+        assert false;
+        break;
+      case DONE_NEG:        // DONE means just ignore
+      case DONE_POS:        // DONE means just ignore
+      case READY_POS:
+      case READY_NEG:
+//        assert false;   // shouldn't happen
         break;
     }
-
-//    parent.rPay.logPayment(this, "A_prog");
+    print("...prog");
+    parent.check(time);
+    print("...chck");
   }
 
   public void execute(double timeNow) {
+    print("exec...");
+    assert (status == READY_POS);
     this.time = timeNow;
-//    parent.rPay.logPayment(this, "B_exec");
-    assert (status == READY && isDestination());
     unlock(true);
-//    parent.rPay.logPayment(this, "A_exec");
-  }
-
-  public void rollback() {
-//    parent.rPay.logPayment(this, "B_roll");
-    assert (status == ABORTED);
-    unlock(false);
-//    parent.rPay.logPayment(this, "A_roll");
+    print("...exec");
   }
 
   public void rollback(double timeNow) {
+    print("roll...");
+    assert (status == READY_POS || status == READY_NEG);
     this.time = timeNow;
-//    parent.rPay.logPayment(this, "B_roll_parent");
-    assert (status == READY);
     unlock(false);
-//    parent.rPay.logPayment(this, "A_roll_parent");
+    print("...roll");
   }
 
   private void route() {
     if (isDestination()) {
-      setReady();
-      parent.anotherSuccess(time);
+      status = READY_POS;
       return;
     }
 
     parent.rPay.remember(path[i], path[i + 1]);                // remember initial weight (originalAll)
     boolean ok = parent.rPay.lock(path[i], path[i + 1], val);  // lock collateral
+
     if(ok) {
       i++;                            // proceed to next node on path
       time += randLat();              // time passes (after everything else)
     } else {
-      abort();
-      parent.anotherFail(time);
+      status = READY_NEG;
     }
   }
 
   private void unlock(boolean successful) {
-    setDone();
+    print("unlk...");
+    status = successful ? DONE_POS : DONE_NEG;
     parent.updateLastUnlockStartTime(time);    // one less ongoing tr, record current time, NOT unlock time
     double time = this.time;
     for (int j = i; j > 0; j--) {     // from current to src
@@ -126,6 +119,7 @@ public class BoomTr implements Comparable<BoomTr> {
           new Edge(path[j - 1], path[j]), time, successful, val);
       parent.rPay.qLocks.add(lock);
     }
+    print("...unlk");
   }
 
   public int getSrc(){
@@ -137,7 +131,12 @@ public class BoomTr implements Comparable<BoomTr> {
   }
 
   public static double randLat() {
-    return (50d + RAND.nextInt(101))*1.17777d;
+    return (50d + RAND.nextInt(101));
+  }
+
+  public void print(String msg){
+//    System.out.println(time + "\t" + "child: " + Arrays.asList(parent.peers).indexOf(this) + "\t" + status);
+//    System.out.println(msg + "\tamt: " + parent.amt + "\n");
   }
 
   @Override

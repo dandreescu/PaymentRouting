@@ -3,8 +3,12 @@ package paymentrouting.route.concurrency;
 import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.REDUNDANT;
 import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.REDUNDANT_RETRY;
 import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.RETRY;
-import static paymentrouting.route.concurrency.Status.DONE;
-import static paymentrouting.route.concurrency.Status.READY;
+import static paymentrouting.route.concurrency.Status.ABORTED;
+import static paymentrouting.route.concurrency.Status.DONE_NEG;
+import static paymentrouting.route.concurrency.Status.DONE_POS;
+import static paymentrouting.route.concurrency.Status.ONGOING;
+import static paymentrouting.route.concurrency.Status.READY_NEG;
+import static paymentrouting.route.concurrency.Status.READY_POS;
 
 import gtna.data.Single;
 import gtna.graph.Edge;
@@ -42,8 +46,9 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
   double ttc = 0;
   double volume = 0;
   Map<Integer, Double> endTime;
+  List[] times;
 
-//  Map<BoomPayment, Map<BoomTr, List<String >>> paymentLog;
+  Map<BoomPayment, Map<BoomTr, List<String >>> paymentLog;
 
   public enum BoomType {
     RETRY, REDUNDANT, REDUNDANT_RETRY
@@ -58,20 +63,27 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
     this.u = u;
   }
 
-//  public void logPayment(BoomTr p, String msg) {
-//    Map<BoomTr, List<String >> myMap = paymentLog.get(p.parent);
-//    List<String> myLog = myMap.get(p);
-//    myLog.add(p.parent.succ + " " + p.parent.amt + ": " + msg + ": time = " + p.time + "; status = " + p.status + "; i = " + p.i + "; path =" +
-//        Arrays.toString(p.path));
-//  }
+  public void logTime(int src, String msg) {
+    if (times[src] == null) times[src] = new ArrayList();
+    times[src].add(msg);
+  }
+
+  public void logPayment(BoomTr p, String msg) {
+    Map<BoomTr, List<String >> myMap = paymentLog.get(p.parent);
+    List<String> myLog = myMap.get(p);
+    myLog.add(msg);
+  }
 
   public void preprocess(Graph g) {
-//    paymentLog = new HashMap<>();
+    paymentLog = new HashMap<>();
     endTime = new HashMap<>();
     rand = new Random();
     edgeweights = (CreditLinks) g.getProperty("CREDIT_LINKS");
     transactions = ((TransactionList)g.getProperty("TRANSACTION_LIST")).getTransactions();
     paths = (Paths) g.getProperty("EDGE_DISJOINT_PATHS");
+
+    times = new List[g.getNodeCount()];
+
 
     originalAll = new HashMap<>();
     locked = new HashMap<>();
@@ -122,14 +134,13 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
 
     while (!trQueue.isEmpty()) {
       BoomTr btr = trQueue.poll();  // next event
-      endTime.put(btr.getSrc(), btr.time);// only for stats, endtime of last transaction
-      if (btr.status == DONE || btr.status == READY) // DONE means ignore, READY mean waiting at the dest for execute/rollback
-          continue;
+      endTime.put(btr.getSrc(), Math.max(btr.time, endTime.getOrDefault(btr.getSrc(), 0d)));// only for stats, endtime of last transaction
       unlockAllUntil(btr.time);     // unlock collateral
       btr.progress();               // tr makes a step
-      trQueue.add(btr);
+      if (btr.status == ONGOING || btr.status == ABORTED)
+        trQueue.add(btr);
     }
-    assert (endTime.keySet().size() == g.getNodeCount());
+//    assert (endTime.keySet().size() == g.getNodeCount());
     double sumEndTime = endTime.values().stream()
         .mapToDouble(Double::doubleValue).map(d -> d / 1000d).sum();
 

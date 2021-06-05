@@ -1,5 +1,9 @@
 package paymentrouting.route.concurrency;
 
 public enum Status {
-  ONGOING, DONE, READY, ABORTED, NOT_STARTED
+  ONGOING,
+  DONE_NEG, DONE_POS,
+  READY_POS, READY_NEG,
+  ABORTED,
+  NOT_STARTED
 }

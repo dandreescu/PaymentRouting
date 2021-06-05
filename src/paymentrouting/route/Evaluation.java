@@ -58,7 +58,7 @@ public class Evaluation {
 		int k = 0;
 		for (int u: new int[]{
 				0,
-//				1,
+//				5,
 //				10,
 //				20,
 //				75,
