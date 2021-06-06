@@ -25,8 +25,8 @@ public class InitPaths extends Transformation {
     this.k = k;
   }
 
-  public static int[][] getEdgeDisjointPaths(Graph g, int src, int dst, int k) {
-    if(src==dst)return new int[][]{new int[]{src}};
+  public static List<int[]> getEdgeDisjointPaths(Graph g, int src, int dst, int k) {
+    if(src==dst)return List.of(new int[]{src});
 
     Map<Edge, Integer> flow = new HashMap<>();
     Map<Edge, Integer> capacity = new HashMap<>();
@@ -61,7 +61,7 @@ public class InitPaths extends Transformation {
       }
     }
 
-    int[][] paths = new int[k][];
+    List<int[]> paths = new ArrayList<>();
     for (int i = 0; i < k; i++) {
       List<Integer> p = new ArrayList<>();
       p.add(src);
@@ -82,17 +82,14 @@ public class InitPaths extends Transformation {
         if (stuck) break;
       }
       if (curr == dst){   // move path from list to array
-        paths[i] = new int[p.size()];
+        int[] arrpath = new int[p.size()];
         int j = 0;
-        for (int n : p) paths[i][j++] = n;
+        for (int n : p)
+          arrpath[j++] = n;
+        paths.add(arrpath);
         p.clear();
       } else break;
     }
-    // trim null paths (when less than k are possible)
-    int notNulls = Arrays.asList(paths).indexOf(null);
-    if (notNulls != -1)
-      paths = Arrays.copyOfRange(paths, 0, notNulls);
-
     return paths;
   }
 
@@ -135,11 +132,11 @@ public class InitPaths extends Transformation {
 
   @Override
   public Graph transform(Graph g) {
-    Map<Integer, Map<Integer, int[][]>> map = new HashMap<>();
+    Map<Integer, Map<Integer, List<int[]>>> map = new HashMap<>();
     Node[] nodes = g.getNodes();
     for (Node n : nodes) {
       int src = n.getIndex();
-      Map<Integer, int[][]> pathsMap = new HashMap<>();
+      Map<Integer, List<int[]>> pathsMap = new HashMap<>();
       map.put(src, pathsMap);
       for (Node m : nodes) {
         int dst = m.getIndex();

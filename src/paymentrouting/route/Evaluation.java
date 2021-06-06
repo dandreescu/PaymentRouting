@@ -49,19 +49,19 @@ public class Evaluation {
 				new Transactions("lightning/ripple_val.csv", 50000),
 				new InitPaths(25)
 				};
-		Network net = new WattsStrogatz(100,8, 0.8, trans);
+//		Network net = new WattsStrogatz(100,8, 0.8, trans);
 
 //		Network net = new ReadableFile("DS", "DS", "data/simple/simple2_graph.txt", trans);
-//		String file  = "lightning/boom.txt";
-//		Network net = new ReadableFile("LIGHTNING", "LIGHTNING", file, null);
-		Metric[] m = new Metric[6];
+		String file  = "lightning/boom.txt";
+		Network net = new ReadableFile("LIGHTNING", "LIGHTNING", file, null);
+		Metric[] m = new Metric[15];
 		int k = 0;
 		for (int u: new int[]{
 				0,
 //				5,
-//				10,
-//				20,
-//				75,
+				10,
+				20,
+				75,
 				150,
 //				250
 		}) {

@@ -70,7 +70,7 @@ public class TransactionList extends GraphProperty {
 				ti = i; 
 				value = Double.parseDouble(parts[0]);
 				src = Integer.parseInt(parts[1]);
-				dst = Integer.parseInt(parts[2]); // todo flip index
+				dst = Integer.parseInt(parts[2]);
 			}
 			tx = new Transaction(ti,value,src,dst);
 			this.transactions[i] = tx; 

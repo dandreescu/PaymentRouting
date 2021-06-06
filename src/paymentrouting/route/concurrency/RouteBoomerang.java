@@ -77,7 +77,7 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
   public void preprocess(Graph g) {
     paymentLog = new HashMap<>();
     endTime = new HashMap<>();
-    rand = new Random();
+    rand = new Random(123456);
     edgeweights = (CreditLinks) g.getProperty("CREDIT_LINKS");
     transactions = ((TransactionList)g.getProperty("TRANSACTION_LIST")).getTransactions();
     paths = (Paths) g.getProperty("EDGE_DISJOINT_PATHS");
