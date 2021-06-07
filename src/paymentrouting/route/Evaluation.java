@@ -33,7 +33,6 @@ public class Evaluation {
 	 * Eval for paper 'Splitting payments locally while routing interdimensionally'
 	 * @param args
 	 */
-
 	public static void main(String[] args) {
 //		dynamicConcurrentEval();
 		boomerangEval();

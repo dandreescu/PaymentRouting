@@ -1,5 +1,6 @@
 package paymentrouting.route.concurrency;
 
+import static paymentrouting.route.concurrency.RouteBoomerang.BoomType.REDUNDANT_RETRY;
 import static paymentrouting.route.concurrency.Status.ABORTED;
 import static paymentrouting.route.concurrency.Status.DONE_NEG;
 import static paymentrouting.route.concurrency.Status.DONE_POS;
@@ -12,13 +13,13 @@ import java.util.Arrays;
 import java.util.stream.Stream;
 
 public class BoomPayment {
-  boolean startedNext;
+//  boolean startedNext;
   double sendingTime;
   BoomTr[] peers;
   int necessary;
   double amt;
   RouteBoomerang rPay;
-  double lastUnlockStartedTime;
+//  double lastUnlockStartedTime;
   boolean done;
 
   public BoomPayment(int v, BoomTr[] peers, double sendingTime, double amt, RouteBoomerang rPay) {
@@ -31,20 +32,25 @@ public class BoomPayment {
 
   public void check(double time) {
     if (done) return;
+    assert (filter(READY_NEG).count() < 2);
     filter(READY_NEG).forEach(tr -> {
       tr.rollback(time);
-//      maybeRetry(time);
+      maybeRetry(time);
     });
-    maybeRetry(time);
+//    maybeRetry(time);
 
     if (!(filter(READY_POS).count() < necessary
         && filter(ONGOING).count() > 0
-        && filter(READY_POS, ONGOING, NOT_STARTED).count() >= necessary))
+        && filter(READY_POS, ONGOING, NOT_STARTED).count() >= necessary)) {
 
       finalizeAMP(time);
+    } else {
+      assert (filter(DONE_POS).count()==0);
+    }
   }
 
-  public void finalizeAMP(double time) {
+  private void finalizeAMP(double time) {
+    done = true;
 //    System.out.println("Finalize: " + time + "\tsucc: " + (filter(READY_POS).count() == necessary));
     filter(ONGOING).forEach(BoomTr::abort);
 
@@ -56,15 +62,14 @@ public class BoomPayment {
       filter(READY_POS).forEach(tr -> tr.rollback(time));
 //      Arrays.stream(peers).forEach(tr -> rPay.logTime(tr.getSrc(), "FAIL: "+time + " "+tr.status+" "+this.toString().split("@")[1]));
     }
-    done = true;
-    updateLastUnlockStartTime(time);
+//    updateLastUnlockStartTime(time);
   }
 
   private void maybeRetry(double timeNow) {
-    while (filter(NOT_STARTED).count() > 0
-        && filter(ONGOING, DONE_POS, READY_POS//, NOT_STARTED
-        , ABORTED, READY_NEG      //todo WHY?
-    ).count() < necessary) {
+    if (filter(NOT_STARTED).count() > 0
+//        && filter(ONGOING, ABORTED, READY_POS, READY_NEG, DONE_POS, DONE_NEG).count()     //todo WHY?
+//        - countFinalNeg(timeNow) < necessary + (rPay.protocol == REDUNDANT_RETRY ? 10 : 0)
+    ) {
 //      System.out.println("Retry: " + timeNow);                   // if we can still retry any
       BoomTr newTr = filter(NOT_STARTED).findFirst().get();      // next available tiny transaction
       newTr.start(timeNow);                           // starts now
@@ -72,23 +77,36 @@ public class BoomPayment {
     }
   }
 
-  public void updateLastUnlockStartTime(double timeNow) {
-    if(startedNext) return;
-//    System.out.println("Last Update: " + timeNow);
-    this.lastUnlockStartedTime =
-        Math.max(lastUnlockStartedTime, timeNow);    // time when the last ongoing tr was cancelled
-    // maybe start next
-    if (filter(ONGOING, ABORTED, READY_POS, READY_NEG).count() == 0) {
-//      Arrays.stream(peers).forEach(tr -> rPay.logTime(tr.getSrc(), "START_NEXT: "+timeNow + " "+tr.status+" "+this.toString().split("@")[1]));
-      rPay.startBoomTr(peers[0].getSrc(),
-          lastUnlockStartedTime);     // start new payment when no more ongoing
-      startedNext = true;
-    }
-  }
-
   private Stream<BoomTr> filter (Status... statuses) {
     return Arrays.stream(peers).filter(bTr -> Arrays.asList(statuses).contains(bTr.status));
   }
+
+//  public void updateLastUnlockStartTime(double timeNow) {
+//    if(startedNext) return;
+////    System.out.println("Last Update: " + timeNow);
+//    this.lastUnlockStartedTime =
+//        Math.max(lastUnlockStartedTime, timeNow);    // time when the last ongoing tr was cancelled
+//    // maybe start next
+//    if (filter(ONGOING, ABORTED, READY_POS, READY_NEG).count() == 0) {
+////      Arrays.stream(peers).forEach(tr -> rPay.logTime(tr.getSrc(), "START_NEXT: "+timeNow + " "+tr.status+" "+this.toString().split("@")[1]));
+//      rPay.startBoomTr(peers[0].getSrc(),
+//          lastUnlockStartedTime);     // start new payment when no more ongoing
+//      startedNext = true;
+//    }
+//  }
+
+
+//  private long countFinalNeg (double timeNow) {
+//    return Arrays.stream(peers).filter(bTr
+//        -> (bTr.status == DONE_NEG && (bTr.lastNegUnlockTime - timeNow < 0.00000001d))
+//    ).count();
+//  }
+//  private long countNotFinalNeg (double timeNow) {
+//    return Arrays.stream(peers).filter(bTr
+//        -> bTr.status != NOT_STARTED
+//        && (bTr.status != DONE_NEG || (timeNow - bTr.lastNegUnlockTime < 0.00000001d))
+//    ).count();
+//  }
 
 //
 //  public void anotherSuccess(double timeNow) {

@@ -45,10 +45,10 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
 
   double ttc = 0;
   double volume = 0;
-  Map<Integer, Double> endTime;
+//  Map<Integer, Double> endTime;
   List[] times;
 
-  Map<BoomPayment, Map<BoomTr, List<String >>> paymentLog;
+//  Map<BoomPayment, Map<BoomTr, List<String >>> paymentLog;
 
   public enum BoomType {
     RETRY, REDUNDANT, REDUNDANT_RETRY
@@ -68,15 +68,18 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
     times[src].add(msg);
   }
 
-  public void logPayment(BoomTr p, String msg) {
-    Map<BoomTr, List<String >> myMap = paymentLog.get(p.parent);
-    List<String> myLog = myMap.get(p);
-    myLog.add(msg);
+//  public void logPayment(BoomTr p, String msg) {
+//    Map<BoomTr, List<String >> myMap = paymentLog.get(p.parent);
+//    List<String> myLog = myMap.get(p);
+//    myLog.add(msg);
+//  }
+  public double randLat() {
+    return (50d*1.12 + rand.nextInt(101));
   }
 
   public void preprocess(Graph g) {
-    paymentLog = new HashMap<>();
-    endTime = new HashMap<>();
+//    paymentLog = new HashMap<>();
+//    endTime = new HashMap<>();
     rand = new Random(123456);
     edgeweights = (CreditLinks) g.getProperty("CREDIT_LINKS");
     transactions = ((TransactionList)g.getProperty("TRANSACTION_LIST")).getTransactions();
@@ -128,32 +131,34 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
 
     for (Node n: g.getNodes()) {  // each node starts its first transaction in the backlog
       int src = n.getIndex();
-      if (backlog[src] != null)
-        startBoomTr(src, 0d);
+      if (backlog[src] != null){}
+//        startBoomTr(src, 0d);
     }
 
     while (!trQueue.isEmpty()) {
       BoomTr btr = trQueue.poll();  // next event
-      endTime.put(btr.getSrc(), Math.max(btr.time, endTime.getOrDefault(btr.getSrc(), 0d)));// only for stats, endtime of last transaction
+//      endTime.put(btr.getSrc(), Math.max(btr.time, endTime.getOrDefault(btr.getSrc(), 0d)));// only for stats, endtime of last transaction
       unlockAllUntil(btr.time);     // unlock collateral
       btr.progress();               // tr makes a step
       if (btr.status == ONGOING || btr.status == ABORTED)
         trQueue.add(btr);
     }
 //    assert (endTime.keySet().size() == g.getNodeCount());
-    double sumEndTime = endTime.values().stream()
-        .mapToDouble(Double::doubleValue).map(d -> d / 1000d).sum();
-
-    System.out.println("AVG SIMULATION TIME: "+sumEndTime);
+//    double sumEndTime = endTime.values().stream()
+//        .mapToDouble(Double::doubleValue).map(d -> d / 1000d).sum();
+//
+//    System.out.println("AVG SIMULATION TIME: "+sumEndTime);
   }
 
-  public void startBoomTr(int src, double time) {
-    Transaction tr = (Transaction) backlog[src].poll(); // next pending tr
+  public void startBoomTr(Transaction tr) {
+//    Transaction tr = (Transaction) backlog[src].poll(); // next pending tr
     if (tr == null)
       return;   // this node is done
 
+    int src = tr.getSrc();
     int dst = tr.getDst();
     double val = tr.getVal();
+    double time = tr.getTime();
     double valPerTr = val / v;              // split payment into v
 
     BoomTr[] peers = new BoomTr[u + v];     // tiny sibling transactions (even if some do not start yet, in case of RETRY)
