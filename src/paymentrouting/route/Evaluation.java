@@ -42,33 +42,40 @@ public class Evaluation {
 		Config.overwrite("SKIP_EXISTING_DATA_FOLDERS", ""+false);
 		Config.overwrite("SERIES_GRAPH_WRITE", ""+false);
 		Config.overwrite("MAIN_DATA_FOLDER", "./data/boomerang/");
-//
-		Transformation[] trans = new Transformation[] {
-				new InitCapacities(100, 1000),
-				new Transactions("lightning/ripple_val.csv", 50000),
-				new InitPaths(25)
-				};
-//		Network net = new WattsStrogatz(100,8, 0.8, trans);
 
-//		Network net = new ReadableFile("DS", "DS", "data/simple/simple2_graph.txt", trans);
-		String file  = "lightning/boom.txt";
-		Network net = new ReadableFile("LIGHTNING", "LIGHTNING", file, null);
-		Metric[] m = new Metric[15];
-		int k = 0;
-		for (int u: new int[]{
-				0,
-//				5,
-				10,
-				20,
-				75,
-				150,
-//				250
-		}) {
-			m[k++] = new RouteBoomerang(RETRY, u);
-			m[k++] = new RouteBoomerang(REDUNDANT, u);
-			m[k++] = new RouteBoomerang(REDUNDANT_RETRY, u);
+		int trs = 1000000;
+
+		int initCap = 200;
+
+
+		double trh = 100;
+		double lat = 0.1;
+		for (int trval: new int[]{25, 100}) {
+			Transformation[] trans = new Transformation[] {
+					new InitCapacities(initCap, 0.05 * initCap, BalDist.EXP),
+					new Transactions(trval, 0.1 * trval, TransDist.EXP, false, trs, trh, false),
+					new InitPaths(25)
+			};
+			Network net = new WattsStrogatz(100, 8, 0.25, trans);
+
+			Metric[] m = new Metric[1];
+			int k = 0;
+			for (int u : new int[] {
+					//				0,
+					//				10,
+					//				20,
+					//				75,
+					150,
+					//				300
+			}) {
+//				m[k++] = new RouteBoomerang(RETRY, u, lat);
+//				m[k++] = new RouteBoomerang(REDUNDANT, u, lat);
+//				m[k++] = new RouteBoomerang(REDUNDANT_RETRY, u, lat);
+			}
+			m[k++] =
+					new RoutePaymentConcurrent(new SplitClosest(new SpeedyMurmursMulti(5)), 1, lat);
+			Series.generate(net, m, 1);
 		}
-		Series.generate(net, m, 1);
 	}
 	
 	public static void attackEval() {

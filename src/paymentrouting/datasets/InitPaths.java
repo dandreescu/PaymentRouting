@@ -7,6 +7,7 @@ import gtna.util.parameter.Parameter;
 import gtna.util.parameter.StringParameter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -26,7 +27,7 @@ public class InitPaths extends Transformation {
   }
 
   public static List<int[]> getEdgeDisjointPaths(Graph g, int src, int dst, int k) {
-    if(src==dst)return List.of(new int[]{src});
+    if(src==dst)return Collections.singletonList(new int[] {src});
 
     Map<Edge, Integer> flow = new HashMap<>();
     Map<Edge, Integer> capacity = new HashMap<>();

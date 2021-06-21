@@ -13,13 +13,11 @@ import java.util.Arrays;
 import java.util.stream.Stream;
 
 public class BoomPayment {
-//  boolean startedNext;
   double sendingTime;
   BoomTr[] peers;
   int necessary;
   double amt;
   RouteBoomerang rPay;
-//  double lastUnlockStartedTime;
   boolean done;
 
   public BoomPayment(int v, BoomTr[] peers, double sendingTime, double amt, RouteBoomerang rPay) {
@@ -37,15 +35,11 @@ public class BoomPayment {
       tr.rollback(time);
       maybeRetry(time);
     });
-//    maybeRetry(time);
 
     if (!(filter(READY_POS).count() < necessary
         && filter(ONGOING).count() > 0
         && filter(READY_POS, ONGOING, NOT_STARTED).count() >= necessary)) {
-
       finalizeAMP(time);
-    } else {
-      assert (filter(DONE_POS).count()==0);
     }
   }
 
@@ -62,14 +56,10 @@ public class BoomPayment {
       filter(READY_POS).forEach(tr -> tr.rollback(time));
 //      Arrays.stream(peers).forEach(tr -> rPay.logTime(tr.getSrc(), "FAIL: "+time + " "+tr.status+" "+this.toString().split("@")[1]));
     }
-//    updateLastUnlockStartTime(time);
   }
 
   private void maybeRetry(double timeNow) {
-    if (filter(NOT_STARTED).count() > 0
-//        && filter(ONGOING, ABORTED, READY_POS, READY_NEG, DONE_POS, DONE_NEG).count()     //todo WHY?
-//        - countFinalNeg(timeNow) < necessary + (rPay.protocol == REDUNDANT_RETRY ? 10 : 0)
-    ) {
+    if (filter(NOT_STARTED).count() > 0) {
 //      System.out.println("Retry: " + timeNow);                   // if we can still retry any
       BoomTr newTr = filter(NOT_STARTED).findFirst().get();      // next available tiny transaction
       newTr.start(timeNow);                           // starts now
@@ -80,62 +70,6 @@ public class BoomPayment {
   private Stream<BoomTr> filter (Status... statuses) {
     return Arrays.stream(peers).filter(bTr -> Arrays.asList(statuses).contains(bTr.status));
   }
-
-//  public void updateLastUnlockStartTime(double timeNow) {
-//    if(startedNext) return;
-////    System.out.println("Last Update: " + timeNow);
-//    this.lastUnlockStartedTime =
-//        Math.max(lastUnlockStartedTime, timeNow);    // time when the last ongoing tr was cancelled
-//    // maybe start next
-//    if (filter(ONGOING, ABORTED, READY_POS, READY_NEG).count() == 0) {
-////      Arrays.stream(peers).forEach(tr -> rPay.logTime(tr.getSrc(), "START_NEXT: "+timeNow + " "+tr.status+" "+this.toString().split("@")[1]));
-//      rPay.startBoomTr(peers[0].getSrc(),
-//          lastUnlockStartedTime);     // start new payment when no more ongoing
-//      startedNext = true;
-//    }
-//  }
-
-
-//  private long countFinalNeg (double timeNow) {
-//    return Arrays.stream(peers).filter(bTr
-//        -> (bTr.status == DONE_NEG && (bTr.lastNegUnlockTime - timeNow < 0.00000001d))
-//    ).count();
-//  }
-//  private long countNotFinalNeg (double timeNow) {
-//    return Arrays.stream(peers).filter(bTr
-//        -> bTr.status != NOT_STARTED
-//        && (bTr.status != DONE_NEG || (timeNow - bTr.lastNegUnlockTime < 0.00000001d))
-//    ).count();
-//  }
-
-//
-//  public void anotherSuccess(double timeNow) {
-//    // check success
-//    maybeRetry(timeNow);
-//    if (filter(READY).count() == necessary) {
-////      System.out.println(amt+": big succ " + timeNow);
-//      succ = true;
-//      rPay.incSucc(timeNow - sendingTime, amt);     // whole payment successful
-//      filter(READY).forEach(boomTr -> boomTr.execute(timeNow));
-//      filter(ONGOING).forEach(BoomTr::abort);
-//      return;
-//    }
-//  }
-//
-//  public void anotherFail(double timeNow) {
-//
-//    maybeRetry(timeNow);
-//    // check fail
-//    if (filter(ONGOING, READY, NOT_STARTED).count() < necessary) {    // if there is no chance of success
-//      //abort ABORTED??
-////      System.out.println(amt+": big fail " + timeNow);
-//      filter(READY).forEach(boomTr -> boomTr.rollback(timeNow));
-//      filter(ONGOING).forEach(BoomTr::abort);
-//      fail = true;
-//      return;
-//    }
-//  }
-
 
 //  public void print(double time) {
 //    System.out.println(amt + ": " + time + ": "

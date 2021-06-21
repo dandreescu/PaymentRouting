@@ -40,53 +40,47 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
   PriorityQueue<BoomTr> trQueue;
   Queue[] backlog;
   Paths paths;
-  int v = 25, u; //todo DON'T FORGET TO CHANGE to 25
+  int v, u; //todo DON'T FORGET TO CHANGE to 25
   BoomType protocol;
 
-  double ttc = 0;
-  double volume = 0;
-//  Map<Integer, Double> endTime;
-  List[] times;
-
+  double ttc;
+  double volume;
+//  List[] times;
 //  Map<BoomPayment, Map<BoomTr, List<String >>> paymentLog;
 
   public enum BoomType {
     RETRY, REDUNDANT, REDUNDANT_RETRY
   }
 
-  public RouteBoomerang(BoomType protocol, int u) {
+  public RouteBoomerang(BoomType protocol, int u, double latency) {
     super(new Parameter[]{
         new StringParameter("BOOM_TYPE", "BOOMERANG_" + protocol.toString()),
         new IntParameter("U", u),
         });
+    this.linklatency = latency;
     this.protocol = protocol;
     this.u = u;
+    this.v = 25; //todo DON'T forget to change!
   }
 
-  public void logTime(int src, String msg) {
-    if (times[src] == null) times[src] = new ArrayList();
-    times[src].add(msg);
-  }
+//  public void logTime(int src, String msg) {
+//    if (times[src] == null) times[src] = new ArrayList();
+//    times[src].add(msg);
+//  }
 
 //  public void logPayment(BoomTr p, String msg) {
 //    Map<BoomTr, List<String >> myMap = paymentLog.get(p.parent);
 //    List<String> myLog = myMap.get(p);
 //    myLog.add(msg);
 //  }
-  public double randLat() {
-    return (50d*1.12 + rand.nextInt(101));
-  }
 
   public void preprocess(Graph g) {
 //    paymentLog = new HashMap<>();
-//    endTime = new HashMap<>();
+//    times = new List[g.getNodeCount()];
     rand = new Random(123456);
     edgeweights = (CreditLinks) g.getProperty("CREDIT_LINKS");
     transactions = ((TransactionList)g.getProperty("TRANSACTION_LIST")).getTransactions();
     paths = (Paths) g.getProperty("EDGE_DISJOINT_PATHS");
-
-    times = new List[g.getNodeCount()];
-
 
     originalAll = new HashMap<>();
     locked = new HashMap<>();
@@ -96,7 +90,6 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
 
     ttc = 0;
     volume = 0;
-//    endTime = 0;
     success = 0;
   }
 
@@ -105,9 +98,8 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
     weightUpdate(edgeweights, originalAll);
 
     ttc /= success;
-    // todo commented out to match the total volume / success count in the graphs in data/boomerang/original_plots
-//    volume /= success;
-//    success /= transactions.length;
+    volume /= success;
+    success /= transactions.length;
   }
 
   /**
@@ -122,60 +114,36 @@ public class RouteBoomerang extends RoutePaymentConcurrent {
   }
 
   public void run(Graph g) {
-    for (Transaction tr : transactions) { // fill backlog of each node with transactions
+    for (Transaction tr : transactions) { // start transactions
       int src = tr.getSrc();
-      if (backlog[src] == null)
-        backlog[src] = new LinkedList<>();
-      backlog[src].add(tr);
-    }
+      int dst = tr.getDst();
+      double time = tr.getTime();
 
-    for (Node n: g.getNodes()) {  // each node starts its first transaction in the backlog
-      int src = n.getIndex();
-      if (backlog[src] != null){}
-//        startBoomTr(src, 0d);
-    }
+      double val = tr.getVal();
+      double valPerTr = val / v;              // split payment into v
 
-    while (!trQueue.isEmpty()) {
+      BoomTr[] peers = new BoomTr[u + v];     // tiny sibling transactions (even if some do not start yet, in case of RETRY)
+      BoomPayment parent = new BoomPayment(v, peers, time, val, this); // parent coordinates all
+
+      for (int j = 0; j < v + u; j++) {            // for all pieces
+        int[] path = paths.get(src, dst, rand);    // random path out of k-edge-disjoint
+        BoomTr btr = new BoomTr(valPerTr, path, parent);
+        peers[j] = btr;
+
+        if ((protocol == REDUNDANT)     // redundant -> send all from the start
+            || (protocol == RETRY && j < v)   // retry -> send first v
+            || (protocol == REDUNDANT_RETRY && j < v + Math.min(10, u))) { // at most 10 redundant
+          btr.start(time);
+          this.trQueue.add(btr);
+        }
+      }
+    }
+    while (!trQueue.isEmpty()) {    // event loop
       BoomTr btr = trQueue.poll();  // next event
-//      endTime.put(btr.getSrc(), Math.max(btr.time, endTime.getOrDefault(btr.getSrc(), 0d)));// only for stats, endtime of last transaction
       unlockAllUntil(btr.time);     // unlock collateral
       btr.progress();               // tr makes a step
       if (btr.status == ONGOING || btr.status == ABORTED)
         trQueue.add(btr);
-    }
-//    assert (endTime.keySet().size() == g.getNodeCount());
-//    double sumEndTime = endTime.values().stream()
-//        .mapToDouble(Double::doubleValue).map(d -> d / 1000d).sum();
-//
-//    System.out.println("AVG SIMULATION TIME: "+sumEndTime);
-  }
-
-  public void startBoomTr(Transaction tr) {
-//    Transaction tr = (Transaction) backlog[src].poll(); // next pending tr
-    if (tr == null)
-      return;   // this node is done
-
-    int src = tr.getSrc();
-    int dst = tr.getDst();
-    double val = tr.getVal();
-    double time = tr.getTime();
-    double valPerTr = val / v;              // split payment into v
-
-    BoomTr[] peers = new BoomTr[u + v];     // tiny sibling transactions (even if some do not start yet, in case of RETRY)
-    BoomPayment parent = new BoomPayment(v, peers, time, val, this); // parent coordinates all
-//    Map<BoomTr, List<String>> myMap = new HashMap<>();
-//    paymentLog.put(parent, myMap);
-    for (int j = 0; j < v + u; j++) {            // for all pieces
-      int[] path = paths.get(src, dst, rand);    // random path out of k-edge-disjoint
-      BoomTr btr = new BoomTr(valPerTr, path, parent);
-      peers[j] = btr;
-//      myMap.put(btr, new ArrayList<>());
-      if((protocol == REDUNDANT )     // redundant -> send all from the start
-          || (protocol == RETRY && j < v)   // retry -> send first v
-          || (protocol == REDUNDANT_RETRY && j < v + Math.min(10, u))) { // at most 10 redundant
-        btr.start(time);
-        this.trQueue.add(btr);
-      }
     }
   }
 

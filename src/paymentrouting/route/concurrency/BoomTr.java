@@ -10,7 +10,6 @@ import static paymentrouting.route.concurrency.Status.READY_NEG;
 import static paymentrouting.route.concurrency.Status.READY_POS;
 
 import gtna.graph.Edge;
-import java.util.Arrays;
 
 public class BoomTr implements Comparable<BoomTr> {
 
@@ -51,7 +50,7 @@ public class BoomTr implements Comparable<BoomTr> {
   public void progress() {
     Status prev = status;
 //    parent.rPay.logTime(getSrc(), "prog: "+time + " "+status+" "+parent.toString().split("@")[1]);
-    print("prog...");
+//    print("prog...");
 //    parent.rPay.logPayment(this, "prog: "+time + "\t"+status);
     switch (status) {
       case ONGOING:
@@ -70,32 +69,31 @@ public class BoomTr implements Comparable<BoomTr> {
 //        assert false;   // shouldn't happen
         break;
     }
-    print("...prog");
+//    print("...prog");
     if (status != prev)
       parent.check(time);
-    print("...chck");
+//    print("...chck");
   }
 
   public void execute(double timeNow) {
-    print("exec...");
+//    print("exec...");
     assert (status == READY_POS);
     this.time = timeNow;
     unlock(true);
-    print("...exec");
+//    print("...exec");
   }
 
   public void rollback(double timeNow) {
-    print("roll...");
+//    print("roll...");
     assert (status == READY_POS || status == READY_NEG);
     this.time = timeNow;
     unlock(false);
-    print("...roll");
+//    print("...roll");
   }
 
   private void route() {
     if (isDestination()) {
       status = READY_POS;
-//      parent.maybeRetry(time);
       return;
     }
 
@@ -104,26 +102,23 @@ public class BoomTr implements Comparable<BoomTr> {
 
     if(ok) {
       i++;                            // proceed to next node on path
-      time += parent.rPay.randLat();              // time passes (after everything else)
+      time += parent.rPay.linklatency;              // time passes (after everything else)
     } else {
       status = READY_NEG;
     }
   }
 
   private void unlock(boolean successful) {
-    print("unlk...");
+//    print("unlk...");
     status = successful ? DONE_POS : DONE_NEG;
-//    parent.updateLastUnlockStartTime(time);    // one less ongoing tr, record current time, NOT unlock time
     double time = this.time;
     for (int j = i; j > 0; j--) {     // from current to src
-      time += parent.rPay.randLat();              // even the first unlock after latency (boomerang does it)
+      time += parent.rPay.linklatency;              // even the first unlock after latency (boomerang does it)
       ScheduledUnlock lock = new ScheduledUnlock(
           new Edge(path[j - 1], path[j]), time, successful, val);
       parent.rPay.qLocks.add(lock);
-//      if (!successful)
-//        lastNegUnlockTime = Math.max(lastNegUnlockTime, time);
     }
-    print("...unlk");
+//    print("...unlk");
   }
 
   public int getSrc(){
@@ -135,11 +130,10 @@ public class BoomTr implements Comparable<BoomTr> {
   }
 
 
-
-  public void print(String msg){
+//  public void print(String msg){
 //    System.out.println(time + "\t" + "child: " + Arrays.asList(parent.peers).indexOf(this) + "\t" + status);
 //    System.out.println(msg + "\tamt: " + parent.amt + "\n");
-  }
+//  }
 
   @Override
   public int compareTo(BoomTr o) {
