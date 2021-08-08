@@ -1,8 +1,10 @@
 package paymentrouting.datasets;
 
+import gtna.graph.Graph;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.Map.Entry;
 
@@ -53,6 +55,7 @@ public class LNParams extends GraphProperty {
     return params.get(e)[4];
   }
 
+
   @Override
   public boolean write(String filename, String key) {
     Filewriter fw = new Filewriter(filename);
@@ -79,7 +82,9 @@ public class LNParams extends GraphProperty {
       if (parts.length < 2) continue;
       Edge e = new Edge(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
       double base = Double.parseDouble(parts[2]);
+      base /= 1000;//milli
       double rate = Double.parseDouble(parts[3]);
+      rate /= 1000000; //per million
       double delay = Double.parseDouble(parts[4]);
       double age = Double.parseDouble(parts[5]);
       double lastFailure = Double.parseDouble(parts[6]);
@@ -89,6 +94,20 @@ public class LNParams extends GraphProperty {
     fr.close();
 
     return key;
+  }
+
+  public LNParams rand(Graph g) {
+    Random r = new Random(12345);
+    this.params = new HashMap<>();
+    for (Edge e: g.getEdges().getEdges()) {
+      double base = r.nextDouble() * 1000;
+      double rate = r.nextDouble();
+      double delay = r.nextDouble() * 144;
+      double age = r.nextDouble() * 130139;
+      double lastFailure = r.nextDouble() * 4.876602889808817;
+      this.params.put(e, new double[]{base, rate, delay, age, lastFailure});
+    }
+    return this;
   }
 
 }

@@ -22,6 +22,7 @@ import gtna.util.parameter.BooleanParameter;
 import gtna.util.parameter.IntParameter;
 import gtna.util.parameter.Parameter;
 import gtna.util.parameter.StringParameter;
+import paymentrouting.datasets.LNParams;
 import paymentrouting.datasets.TransactionList;
 import treeembedding.credit.CreditLinks;
 import treeembedding.credit.Transaction;
@@ -42,7 +43,7 @@ public class RoutePayment extends Metric{
 	protected int tInterval = 1000; //default length of an epoch (if you want to see success over time: averages taken for this number of transactions)
 	protected int recompute_epoch; //do you recompute routing info periodically all tInterval? (if so, value < Integer.MAX_VALUE, which is default)
 	protected int trials; //number of attempts payment is tried (didn't evaluate more than 1) 
-	
+	public double vol;
 	//Metrics: 
 	protected Distribution hopDistribution; //number of hops of longest path (distribution)
 	protected double avHops; //average number of hops of longest paths in a split payment 
@@ -55,7 +56,9 @@ public class RoutePayment extends Metric{
 	protected Distribution trysDistribution; //number of attempts used until payment successful (or maximal if unsuccessful) 
 	protected double success; //fraction of payments successful
 	protected double successFirst; //fraction of payments successful in first try
-	protected double[] succTime; //fraction of successful payments over time 
+	protected double[] succTime; //fraction of successful payments over time
+
+	public double fees;
 	
 	
 	public RoutePayment(PathSelection ps, int trials, boolean up) {
@@ -100,7 +103,6 @@ public class RoutePayment extends Metric{
 	 * @param ps
 	 * @param trials
 	 * @param up
-	 * @param epoch
 	 * @param params
 	 */
 	public RoutePayment(PathSelection ps, int trials, boolean up, Parameter[] params) {
@@ -126,10 +128,13 @@ public class RoutePayment extends Metric{
 		rand = new Random();
 		this.select.initRoutingInfo(g, rand);
 		edgeweights = (CreditLinks) g.getProperty("CREDIT_LINKS");
+		LNParams params = (LNParams) g.getProperty("LN_PARAMS");
 		HashMap<Edge, Double> originalAll = new HashMap<Edge,Double>();
 		this.transactions = ((TransactionList)g.getProperty("TRANSACTION_LIST")).getTransactions();
 		Node[] nodes = g.getNodes();
 
+		this.fees = 0;
+		this.vol =0;
 		this.avHops = 0;
 		this.avHopsSucc = 0;
 		this.avMess = 0;
@@ -153,6 +158,7 @@ public class RoutePayment extends Metric{
 
 		//iterate over transactions
 		for (int i = 0; i < this.transactions.length; i++) {
+			double fee = 0;
 			Transaction tr = this.transactions[i];
 			int src = tr.getSrc();
 			int dst = tr.getDst();
@@ -215,6 +221,9 @@ public class RoutePayment extends Metric{
 									x++;
 									//update vals
 									Edge e = edgeweights.makeEdge(cur, out[k]);
+									double[] par = params.getParams(cur, out[k]);
+									fee += par[0] + partVals[k] * par[1];
+//									fee ++;
 									double w = edgeweights.getWeight(e);
 									if (!originalWeight.containsKey(e)){
 										originalWeight.put(e, w); //store balance before this payment if later reset due to, e.g., failure
@@ -277,6 +286,10 @@ public class RoutePayment extends Metric{
 
 					this.succTime[slot]++;
 					this.success++;
+					this.fees += fee;
+					vol += val;
+//					if (fee/val > 0.001)
+//					System.out.format("fee = %.3f\n", fee/val);
 					if (t == 0) {
 						this.successFirst++;
 					}
@@ -309,6 +322,7 @@ public class RoutePayment extends Metric{
 		this.avHopsSucc = this.hopDistributionSucc.getAverage();
 		this.avMess = this.messageDistribution.getAverage();
 		this.avMessSucc = this.messageDistributionSucc.getAverage();
+		this.fees /= vol;
 		this.success = this.success/this.transactions.length;
 		this.successFirst = this.successFirst/this.transactions.length;
 		if (rest > 0) {
@@ -398,11 +412,11 @@ public class RoutePayment extends Metric{
 //		Single h_av = new Single(this.key + "_HOPS_AV", this.avHops);
 //		Single h_av_succ = new Single(this.key + "_HOPS_AV_SUCC", this.avHopsSucc);
 //
-//		Single s1 = new Single(this.key + "_SUCCESS_DIRECT", this.successFirst);
+		Single s1 = new Single(this.key + "_FEE_AV", this.fees);
 		Single s = new Single(this.key + "_SUCCESS", this.success);
 
 //		return new Single[]{m_av, m_av_succ, h_av, h_av_succ, s1, s};
-		return new Single[]{s};
+		return new Single[]{s,s1};
 	}
 	
 

@@ -111,7 +111,7 @@ public class Transactions extends Transformation {
 
 	@Override
 	public Graph transform(Graph g) {
-		Random rand = new Random();
+		Random rand = new Random(12345);
 		int nodes = g.getNodeCount();
 		CreditLinks edgeweights = (CreditLinks) g.getProperty("CREDIT_LINKS");
 		double sumTime = 0;

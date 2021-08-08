@@ -1,9 +1,11 @@
 package paymentrouting.route.costfunction;
 
+import java.util.Map;
 import paymentrouting.datasets.LNParams;
 import treeembedding.credit.CreditLinks;
 
 public class Eclair implements CostFunction {
+
 
   static double CBR = 684609;
 
@@ -31,12 +33,12 @@ public class Eclair implements CostFunction {
     double fee = base + amt * rate;
 
     double ndelay = normalize(delay, MIN_DELAY, MAX_DELAY);
-    double ncapacity = normalize(cap, MIN_CAP, MAX_CAP);
+    double ncapacity = 1 - normalize(cap, MIN_CAP, MAX_CAP);
     double nage = normalize(age, MIN_AGE, MAX_AGE);
 
     return fee * (ndelay * DELAY_RATIO + ncapacity * CAPACITY_RATIO + nage * AGE_RATIO);
     } catch (NullPointerException e) {
-      System.out.println();
+      System.out.println("wtf");
       return 0;
     }
   }
