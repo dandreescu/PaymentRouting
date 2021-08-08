@@ -38,7 +38,7 @@ public class Eclair implements CostFunction {
 
     return fee * (ndelay * DELAY_RATIO + ncapacity * CAPACITY_RATIO + nage * AGE_RATIO);
     } catch (NullPointerException e) {
-      System.out.println("wtf");
+      System.out.println("?");
       return 0;
     }
   }

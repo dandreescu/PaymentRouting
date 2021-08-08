@@ -1,39 +1,22 @@
 package paymentrouting.route;
 
 import gtna.data.Series;
-import gtna.graph.Graph;
 import gtna.metrics.Metric;
 import gtna.networks.Network;
-import gtna.networks.model.BarabasiAlbert;
-import gtna.networks.model.ErdosRenyi;
 import gtna.networks.util.ReadableFile;
 import gtna.transformation.Transformation;
-import gtna.transformation.partition.LargestConnectedComponent;
-import gtna.transformation.partition.LargestStronglyConnectedComponent;
-import gtna.transformation.partition.LargestWeaklyConnectedComponent;
 import gtna.util.Config;
-import paymentrouting.datasets.InitCapacities;
-import paymentrouting.datasets.InitCapacities.BalDist;
-import paymentrouting.datasets.InitLNParams;
-import paymentrouting.datasets.LNParams;
 import paymentrouting.datasets.Transactions;
 import paymentrouting.datasets.Transactions.TransDist;
-import paymentrouting.route.attack.ColludingDropSplits;
-import paymentrouting.route.attack.NonColludingDropSplits;
 import paymentrouting.route.costfunction.CLightning;
 import paymentrouting.route.costfunction.Eclair;
 import paymentrouting.route.costfunction.LND;
-import paymentrouting.route.fee.AbsoluteDiffFee;
-import paymentrouting.route.fee.FeeComputation;
-import paymentrouting.route.fee.LightningFees;
-import paymentrouting.route.fee.RatioDiffFee;
-import paymentrouting.route.fee.RoutePaymentFees;
 
 public class PaymentTests {
 
 	public static void main(String[] args) {
 		Config.overwrite("SKIP_EXISTING_DATA_FOLDERS", ""+false);//run even if results already exist 
-		runSimpleTestSynthetic(args);
+		runLN();
 //		runSimpleTest();
 	}
 	
@@ -49,9 +32,9 @@ public class PaymentTests {
 //		int trials = 1; // only one attempt
 //		boolean up = false; //no dymanic updates of balances
         Metric[] m = new Metric[] {
-				new RouteExamplePayment(new LND(), false),
-				new RouteExamplePayment(new Eclair(), false),
-				new RouteExamplePayment(new CLightning(), false),
+				new RouteLN(new LND(), false),
+				new RouteLN(new Eclair(), false),
+				new RouteLN(new CLightning(), false),
 //        							new RoutePayment(new ClosestNeighbor(hop),trials,up), //no splitting, HopDistance
 //				                   new RoutePayment(new ClosestNeighbor(speedyMulti),trials,up), //no splitting, Interdimensional SpeedyMurmurs
 //				                   new RoutePayment(new SplitIfNecessary(hop),trials,up), //split if necessary, HopDistance
@@ -64,48 +47,26 @@ public class PaymentTests {
 		Series.generate(net, m, 1); 
 	}
 	
-	public static void runSimpleTestSynthetic(String[] args) {
-
-		Config.overwrite("MAIN_DATA_FOLDER", "./data/"+args[0]+"/");
+	public static void runLN() {
 		int number = 10;
-		boolean up = false; // no dymanic updates of balances
-		number = Integer.parseInt(args[1]);
-		up = args.length>3;
-		Transformation[] trans = new Transformation[] {
-//				new LargestStronglyConnectedComponent(),
-//				new InitLNParams(),
-//				new InitCapacities(200, -1, BalDist.EXP),
-				//exponentially distributed capacities with average value 200 (middle value is variance, which is not relevant for exponential)
-				new Transactions(Integer.parseInt(args[2]), -1, TransDist.CONST, false, number, false, false),
-		        };
-//		Network net = new BarabasiAlbert(30, 3, null);
+		boolean up = false;
+		int trials = 1;
 
+		Config.overwrite("MAIN_DATA_FOLDER", "./data/LN/");
+
+		Transformation[] trans = new Transformation[] {
+				new Transactions(10000, -1, TransDist.CONST, false, number, false, false),
+		        };
 		Network net = new ReadableFile("DS", "DS", "lightning/lngraph_2021_05_23.graph", trans);
-//		Network net = new BarabasiAlbert(63//29
-//				, 5, trans);//scale-free barabasi-albert graph with 30 nodes, each new node forming three links to existing nodes
-		// generate distance functions
-//		DistanceFunction hop = new HopDistance();
 		DistanceFunction speedyMulti = new SpeedyMurmursMulti(5); // Interdimensional SpeedyMurmurs with two trees
-		int trials = 1; // only one attempt
 
 		Metric[] m = new Metric[] {
-				new RouteExamplePayment(new Eclair(), up),
-				new RouteExamplePayment(new LND(), up),
-				new RouteExamplePayment(new CLightning(), up),
-//				new RoutePayment(new ClosestNeighbor(hop), trials, up), // no splitting, HopDistance
-//				new RoutePayment(new ClosestNeighbor(speedyMulti), trials, up), // no splitting, Interdimensional
-//																				// SpeedyMurmurs
-//				new RoutePayment(new SplitIfNecessary(hop), trials, up), // split if necessary, HopDistance
-//				new RoutePayment(new SplitIfNecessary(speedyMulti), trials, up), // split if necessary, Interdimensional
-//																					// SpeedyMurmurs
-//				new RoutePayment(new SplitClosest(hop), trials, up), // split by dist, HopDistance
-				new RoutePayment(new SplitClosest(speedyMulti), trials, up), // split by dist, Interdimensional
-//																				// SpeedyMurmurs
-//				new RoutePayment(new RandomSplit(hop), trials, up), // random splitting, HopDistance
-//				new RoutePayment(new RandomSplit(speedyMulti), trials, up) // random splitting, Interdimensional
-																			// SpeedyMurmurs
+				new RouteLN(new Eclair(), up),
+				new RouteLN(new LND(), up),
+				new RouteLN(new CLightning(), up),
+
+				new RoutePayment(new SplitClosest(speedyMulti), trials, false),
 		};
-		//run 
 		Series.generate(net, m, 1);
    }
 

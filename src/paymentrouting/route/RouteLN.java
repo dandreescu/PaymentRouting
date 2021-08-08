@@ -34,7 +34,7 @@ import paymentrouting.route.costfunction.LND;
 import treeembedding.credit.CreditLinks;
 import treeembedding.credit.Transaction;
 
-public class RouteExamplePayment extends Metric {
+public class RouteLN extends Metric {
 
   public double success;
   public double fees;
@@ -52,8 +52,8 @@ public class RouteExamplePayment extends Metric {
   double timeNow;
   boolean up;
 
-  public RouteExamplePayment(CostFunction costFunction, boolean update) {
-    super("EXAMPLE_ROUTE_PAYMENT", new Parameter[] {
+  public RouteLN(CostFunction costFunction, boolean update) {
+    super("ROUTE_LN", new Parameter[] {
         new StringParameter("PROTOCOL", costFunction.getClass().getSimpleName()),
         new BooleanParameter("UPDATE", update)});
     this.costFunction = costFunction;
@@ -77,7 +77,6 @@ public class RouteExamplePayment extends Metric {
     originalAll = new HashMap<>();
 
     for (int i = 0; i < transactions.length; i++) {
-//      System.out.println(i);
       Transaction tr = transactions[i];
       int src = tr.getSrc();
       int dst = tr.getDst();
@@ -88,19 +87,18 @@ public class RouteExamplePayment extends Metric {
         ((LND) costFunction).setObserver(src, timeNow);
       }
 
-      int k = (costFunction instanceof Eclair) ? 3 : 1; //todo
-//      int k = 1;
+      int k = (costFunction instanceof Eclair) ? 3 : 1;
+
       List<Path> paths = yensKShortestPaths(k, src, dst, val, g.getNodes(), false);
       if (paths == null) {
         success--;
-//        System.out.println("no paths?");
         continue;
       }
 //      appendExtra(paths, val, g.getNodes());
 
       int pid = generator.nextInt(paths.size());
-      Path p = paths.get(pid); //todo
-//      Path p = paths.get(0);
+      Path p = paths.get(pid);
+
       if (p == null) {
         success--;
         continue;
@@ -108,9 +106,8 @@ public class RouteExamplePayment extends Metric {
       int[] path = p.p;
 
       boolean ok = false;
-      for (int r = 0; r < 5; r++) {
-        ok = send(path, val) == -1; //todo
-//      boolean ok = sendRec(paths, path, val);
+      for (int r = 0; r < 5; r++) { //retry 5 times
+        ok = send(path, val) == -1;
         if(costFunction instanceof LND){
           Path res = dijkstra(src, dst, val, g.getNodes(), new HashSet<>(), new HashSet<>());
           if(res==null)
@@ -135,40 +132,15 @@ public class RouteExamplePayment extends Metric {
       }
 
       if(!up)
-        weightUpdate(edgeweights, originalAll);//todo dyn?
+        weightUpdate(edgeweights, originalAll);
     }
     weightUpdate(edgeweights, originalAll);
     fees /= success;
-//    System.out.println("final: " + fees);
     success /= transactions.length;
   }
 
-  private void appendExtra(List<Path> paths, double val, Node[] nodes) {
-    List<Path> newPaths = new ArrayList<>();
-    Set<Edge> excluded = new HashSet<>();
-    int[] p = paths.get(0).p;
-    for (int k = 0; k < 5; k++) {
-      double minCap = Double.MAX_VALUE / 2;
-      Edge e = null;
-      for (int i = 0; i < p.length - 1; i++) {    // for all edges on path
-        double cap = edgeweights.getTotalCapacity(p[i], p[i + 1]);
-        Edge edge = edgeweights.makeEdge(p[i], p[i + 1]);
-        if (!excluded.contains(edge) && cap < minCap) {
-          minCap = cap;
-          e = edge;
-        }
-      }
-      if (e != null) {
-        excluded.add(e);
-        Path newPath = dijkstra(p[0], p[p.length - 1], val / 2, nodes, new HashSet<>(), new HashSet<>());
-        newPaths.add(newPath);
-      }
-    }
-    paths.addAll(newPaths);
-  }
-
   public int send(int[] path, double val) {
-    for (int i = 0; i < path.length - 1; i++) {    // for all edges on path
+    for (int i = 0; i < path.length - 1; i++) {
 
       Edge e = edgeweights.makeEdge(path[i], path[i + 1]);
       double w = edgeweights.getWeight(e);
@@ -193,33 +165,57 @@ public class RouteExamplePayment extends Metric {
     return -1;
   }
 
-  public boolean sendRec(List<Path> paths, int[] path, double val) {
-    for (int i = 0; i < path.length - 1; i++) {    // for all edges on path
+//  private void appendExtra(List<Path> paths, double val, Node[] nodes) {
+//    List<Path> newPaths = new ArrayList<>();
+//    Set<Edge> excluded = new HashSet<>();
+//    int[] p = paths.get(0).p;
+//    for (int k = 0; k < 5; k++) {
+//      double minCap = Double.MAX_VALUE / 2;
+//      Edge e = null;
+//      for (int i = 0; i < p.length - 1; i++) {    // for all edges on path
+//        double cap = edgeweights.getTotalCapacity(p[i], p[i + 1]);
+//        Edge edge = edgeweights.makeEdge(p[i], p[i + 1]);
+//        if (!excluded.contains(edge) && cap < minCap) {
+//          minCap = cap;
+//          e = edge;
+//        }
+//      }
+//      if (e != null) {
+//        excluded.add(e);
+//        Path newPath = dijkstra(p[0], p[p.length - 1], val / 2, nodes, new HashSet<>(), new HashSet<>());
+//        newPaths.add(newPath);
+//      }
+//    }
+//    paths.addAll(newPaths);
+//  }
 
-      Edge e = edgeweights.makeEdge(path[i], path[i + 1]);
-      double w = edgeweights.getWeight(e);
-      if (!original.containsKey(e))
-        original.put(e, w);
-      if (!originalAll.containsKey(e))
-        originalAll.put(e, w);
-
-      boolean ok = edgeweights.setWeight(path[i], path[i + 1], val);
-      if (!ok) {
-//        weightUpdate(edgeweights, original);
-        int[] spurPath = findAlt(paths, path, i);
-        if (spurPath == null)
-          return false;
-        double pot = edgeweights.getPot(path[i], path[i + 1]);
-        boolean splitSaved = sendRec(paths, spurPath, val - pot)
-            && sendRec(paths, Arrays.copyOfRange(path, i, path.length), pot);
-        if (splitSaved) {
-//          System.out.println("saved: "+paths.toString().split("@")[1]);
-        }
-        return splitSaved;
-      }
-    }
-    return true;
-  }
+//  public boolean sendRec(List<Path> paths, int[] path, double val) {
+//    for (int i = 0; i < path.length - 1; i++) {    // for all edges on path
+//
+//      Edge e = edgeweights.makeEdge(path[i], path[i + 1]);
+//      double w = edgeweights.getWeight(e);
+//      if (!original.containsKey(e))
+//        original.put(e, w);
+//      if (!originalAll.containsKey(e))
+//        originalAll.put(e, w);
+//
+//      boolean ok = edgeweights.setWeight(path[i], path[i + 1], val);
+//      if (!ok) {
+////        weightUpdate(edgeweights, original);
+//        int[] spurPath = findAlt(paths, path, i);
+//        if (spurPath == null)
+//          return false;
+//        double pot = edgeweights.getPot(path[i], path[i + 1]);
+//        boolean splitSaved = sendRec(paths, spurPath, val - pot)
+//            && sendRec(paths, Arrays.copyOfRange(path, i, path.length), pot);
+//        if (splitSaved) {
+////          System.out.println("saved: "+paths.toString().split("@")[1]);
+//        }
+//        return splitSaved;
+//      }
+//    }
+//    return true;
+//  }
 
   private int[] findAlt(List<Path> paths, int[] path, int failPoint) {
     for (Path p : paths) {

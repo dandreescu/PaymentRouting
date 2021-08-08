@@ -1,16 +1,14 @@
 package paymentrouting.datasets;
 
-import gtna.graph.Edge;
 import paymentrouting.route.Path;
-import paymentrouting.route.RouteExamplePayment;
-import treeembedding.credit.CreditLinks;
+import paymentrouting.route.RouteLN;
 
 public class Payment {
   Path[] paths;
   int[] indices;
-  RouteExamplePayment rPay;
+  RouteLN rPay;
 
-  public Payment(Path[] paths, RouteExamplePayment rPay) {
+  public Payment(Path[] paths, RouteLN rPay) {
     this.paths = paths;
     this.rPay = rPay;
     indices = new int[paths.length];
