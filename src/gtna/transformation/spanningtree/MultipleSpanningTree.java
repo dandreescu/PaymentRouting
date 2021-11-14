@@ -70,6 +70,7 @@ public class MultipleSpanningTree extends Transformation {
 					int[] r = this.selectRoot(graph, rootSelector);
 					for (int i = 0; i < roots.length; i++){
 						roots[i] = r[i % r.length];
+						System.out.println("root "+i+": "+roots[i]);
 					}
 				}
 				Vector<HashMap<Integer, ParentChild>> parentChildMap = new Vector<HashMap<Integer, ParentChild>>();
@@ -265,9 +266,13 @@ public class MultipleSpanningTree extends Transformation {
             		graph.addProperty(graph.getNextKey("SPANNINGTREE"), result);
                 }
 			}
-			
+			//todo: find root
+			for (Node n: graph.getNodes()) {
+
+			}
 			return graph;
 		}
+
 		
 		
 

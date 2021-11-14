@@ -73,7 +73,7 @@ public class Treeembedding extends Transformation{
 		int[][] coordinates = new int[g.getNodeCount()][];
 		
 		int rootIndex = st.getSrc();
-		// root has an empty coordinate vector 
+		// root has an empty coordinate vector
 		coordinates[rootIndex] = this.getRootCoord(rand);
 		
 		Queue<Integer> nodequeue = new LinkedList<Integer>();
@@ -121,6 +121,7 @@ public class Treeembedding extends Transformation{
 			System.arraycopy(coordinates[i], 0, newC, 0, coordinates[i].length);
 			for (int j = coordinates[i].length; j < newC.length; j++){
 				newC[j] = rand.nextInt();
+//				newC[j] = rand.nextInt();
 			}
 			coordinates[i] = newC;
 		}

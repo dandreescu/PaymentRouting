@@ -1,12 +1,14 @@
 
 package paymentrouting.route;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Random;
+import java.util.Set;
 import java.util.Vector;
 
 import gtna.data.Single;
@@ -99,7 +101,6 @@ public class RoutePayment extends Metric{
 	 * @param ps
 	 * @param trials
 	 * @param up
-	 * @param epoch
 	 * @param params
 	 */
 	public RoutePayment(PathSelection ps, int trials, boolean up, Parameter[] params) {
@@ -149,13 +150,21 @@ public class RoutePayment extends Metric{
 			this.succTime = new double[len+1];
 		}
 		int slot = 0;
+
+		SpeedyMurmursMulti sp = (SpeedyMurmursMulti) this.select.dist;
+		Attack attack = new Attack(g, sp, 0.1, false);
+//		Attack attack = new Attack(g, sp, new int[]{3, 1});
+		ArrayList<Set<Integer>> sets = new ArrayList<>();
+//		log = true;
 		
 		//iterate over transactions
 		for (int i = 0; i < this.transactions.length; i++) {
 			Transaction tr = this.transactions[i];
-			int src = tr.getSrc();
+			int src = sp.roots[0];
+//			int src = tr.getSrc();
 			int dst = tr.getDst();
-			if (log) System.out.println("Src-dst " + src + "," + dst); 
+			if (log) System.out.println("Src-dst " + src + "," + dst);
+//			System.out.println("Src-dst " + src + "," + dst);
 			double val = tr.getVal();
 			boolean s = true; //successful, reset when failure encountered 
 	    	int h = 0; //hops
@@ -198,7 +207,28 @@ public class RoutePayment extends Metric{
 		            	if (log) System.out.println("Routing at cur " + cur); 
 		                //getNextVals -> distribution of payment value over neighbors
 		                double[] partVals = this.select.getNextsVals(g, cur, dst, 
-		                		pre, excluded, this, pp.val, rand, pp.reality); 
+		                		pre, excluded, this, pp.val, rand, pp.reality);
+//						if (pre != -1 && dst != cur) {
+//						System.out.println("curr = "+cur);//todo begin
+
+//							Set<Integer> possible = new HashSet<Integer>();
+//							int nextt = -1;
+//							int[] outt = nodes[cur].getOutgoingEdges();
+//							for (int k = 0; k < partVals.length; k++) {
+//								if (partVals[k] > 0){
+//									nextt = outt[k];
+//									System.out.println(nextt);
+//								}
+//							}
+//							for (int node = 0; node < nodes.length; node++) {
+//								if (node == dst || sp.isChild(nextt, node)) {
+//									possible.add(node);
+//								}
+//
+//							}
+//							sets.add(possible);
+//						}
+		                //todo end
 		                //reset excluded for future use 
 		                for (int l = 0; l < past.size(); l++) {
 		            		excluded[past.get(l)] = false;
@@ -212,6 +242,13 @@ public class RoutePayment extends Metric{
 		                	for (int k = 0; k < partVals.length; k++) {
 		                		if (partVals[k] > 0) {
 		                			x++;
+									//todo begin
+									if (attack.isAttacker(cur)) {
+										int[] anonymitySetObf = attack.dstAnonymitySet(0, out[k], dst, cur, true);
+										int[] anonymitySet = attack.dstAnonymitySet(0, out[k], dst, cur, false);
+//										System.out.println("---->  " + anonymitySet.length);
+//										System.out.println("---->  " + Arrays.toString(anonymitySet));
+									}//todo end
 		                			//update vals 
 		                			Edge e = edgeweights.makeEdge(cur, out[k]);
 		    						double w = edgeweights.getWeight(e);
@@ -296,6 +333,9 @@ public class RoutePayment extends Metric{
 		    if (this.recompute_epoch != Integer.MAX_VALUE && (i+1) % this.recompute_epoch == 0) {
 		    	this.select.initRoutingInfo(g, rand);
 		    }
+		    for (Set set: sets) {
+				System.out.println("Anonymity set size = "+set.size());
+			}
 		}
 
 		//compute final stats
