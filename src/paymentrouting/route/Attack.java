@@ -96,7 +96,7 @@ public class Attack {
       for (int i = 0; i < colluders.length; i++) {
         int rootDist = sm.rootDist(colluders[i], k);
         int myRootDist = (int) hop.distance(colluders[i], sm.roots[k], 0);
-        if (rootDist != myRootDist) {
+        if (rootDist != myRootDist && myRootDist == 2) {
           System.out.println("RD: " + rootDist + " != " + myRootDist);
           System.out.println(sm.roots[k] + " -> " + colluders[i]);
           System.out.println(Arrays.toString(sm.coords[k][colluders[i]]));
