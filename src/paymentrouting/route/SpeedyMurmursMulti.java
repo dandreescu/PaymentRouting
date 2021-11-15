@@ -114,11 +114,25 @@ public class SpeedyMurmursMulti extends DistanceFunction {
 		Treeembedding embed = new Treeembedding("T",60,roots, 
 					 MultipleSpanningTree.Direct.TWOPHASE);
 			  g = embed.transform(g);
-		  
+
+		HopDistance hop = new HopDistance();
+		hop.initRouteInfo(g, rand);
 		 for (int i = 0; i < this.realities; i++) {
 			 SpanningTree tree = (SpanningTree)g.getProperty("SPANNINGTREE_"+i);
 			 this.levels[i] = tree.depth;
 			 this.coords[i] = ((TreeCoordinates)g.getProperty("TREE_COORDINATES_"+i)).getCoords();
+
+			 // todo start debug
+			 for (int n = 0; n < nodes.length; n++) {
+			 	if (n == roots[i])
+			 		continue;
+			 	int hopRootDist = (int) hop.distance(roots[i], n, i);
+			 	int smRootDist = (int) distOne(roots[i], n, i);
+			 	if (hopRootDist != smRootDist) {
+					System.out.println("root distance: " + hopRootDist + " != " + smRootDist);
+				}
+			 }
+			 // todo end debug
 		 }
 		  
 	}

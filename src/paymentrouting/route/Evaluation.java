@@ -26,7 +26,32 @@ public class Evaluation {
 	 */
 
 	public static void main(String[] args) {
-		attackEval();  
+		Config.overwrite("SKIP_EXISTING_DATA_FOLDERS", ""+false);
+		Config.overwrite("SERIES_GRAPH_WRITE", ""+true);
+		Config.overwrite("MAIN_DATA_FOLDER", "./data/dyn-lightning/");
+		//network parameters
+		int init = 200;
+		int trval = 10;
+		int trs = 10;
+		TransDist td = TransDist.EXP;
+		BalDist bd = BalDist.EXP;
+		String file  = "lightning/lngraph_2020_03_01__04_00.graph";
+//		String file  = "data/simple/simple2_graph.txt";
+		//routing parameters: trees for speedymurmurs
+		int trees = 3;
+		//generate network
+		Transformation[] trans = new Transformation[] {
+				new InitCapacities(init,0.05*init, bd),
+				new Transactions(trval, 0.001*trval, td, false, trs, false, false)};
+		Network net = new ReadableFile("LIGHTNING", "LIGHTNING", file, trans);
+		//instantiate routing
+		DistanceFunction speedyMulti = new SpeedyMurmursMulti(trees);
+		int trials = 1;
+		boolean up = true;
+		Metric[] m = new Metric[] {
+				new RoutePayment(new SplitClosest(speedyMulti),trials, up)
+		};
+		Series.generate(net, m, 1);
 	}
 	
 	/**
