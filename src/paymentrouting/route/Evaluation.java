@@ -59,50 +59,32 @@ public class Evaluation {
 	 * Figure 5 in paper  
 	 */
 	public static void attackEval() {
-		//Storage settings
 		Config.overwrite("SKIP_EXISTING_DATA_FOLDERS", ""+false);
 		Config.overwrite("SERIES_GRAPH_WRITE", ""+true);
-		Config.overwrite("MAIN_DATA_FOLDER", "./data/attack-lightning/");
-		//Network parameters
-		int init = 200; 
-		int trval = 100; 
-		int trs = 10000;
-		int[] trees = {5}; 
+		Config.overwrite("MAIN_DATA_FOLDER", "./data/dyn-lightning/");
+		//network parameters
+		int init = 200;
+		int trval = 10;
+		int trs = 10;
 		TransDist td = TransDist.EXP;
 		BalDist bd = BalDist.EXP;
 		String file  = "lightning/lngraph_2020_03_01__04_00.graph";
+//		String file  = "data/simple/simple2_graph.txt";
+		//routing parameters: trees for speedymurmurs
+		int trees = 2;
+		//generate network
 		Transformation[] trans = new Transformation[] {
-				new InitCapacities(init,0.05*init, bd), 
-				new Transactions(trval, 0.1*trval, td, false, trs, false, true)};
+				new InitCapacities(init,0.05*init, bd),
+				new Transactions(trval, 0.001*trval, td, false, trs, false, false)};
 		Network net = new ReadableFile("LIGHTNING", "LIGHTNING", file, trans);
-		//Attack parameters: maximal delay introduced by attacker, we try two values 
-		int maxdelay1 = 12; 
-		int maxdelay2 = 0;
-	
-		//Routing parameters 
-		DistanceFunction[] speedyMulti = new SpeedyMurmursMulti[trees.length];
-		for (int i = 0; i < speedyMulti.length; i++) {
-			speedyMulti[i] = new SpeedyMurmursMulti(trees[i]);
-		}
+		//instantiate routing
+		DistanceFunction speedyMulti = new SpeedyMurmursMulti(trees);
 		int trials = 1;
-		boolean up = false; 
-		Metric[] m = new Metric[88*trees.length+1]; 
-		int runs = 20;
-		
-		//execute simulation: colluding and non-colluding with the two splitting methods explored in the paper and the two delays defined above
-		int index = 0; 
-		for (int i = 0; i < 11; i++){
-			m[index++] =  new RoutePayment(new ColludingDropSplits(new SplitClosest(speedyMulti[0]), 0.1*i,maxdelay1),trials, up);
-			m[index++] =  new RoutePayment(new ColludingDropSplits(new SplitIfNecessary(speedyMulti[0]), 0.1*i,maxdelay1),trials, up);	
-			m[index++] =  new RoutePayment(new ColludingDropSplits(new SplitClosest(speedyMulti[0]), 0.1*i,maxdelay2),trials, up);
-			m[index++] =  new RoutePayment(new ColludingDropSplits(new SplitIfNecessary(speedyMulti[0]), 0.1*i,maxdelay2),trials, up);
-			m[index++] =  new RoutePayment(new NonColludingDropSplits(new SplitClosest(speedyMulti[0]), 0.1*i,maxdelay1),trials, up);
-			m[index++] =  new RoutePayment(new NonColludingDropSplits(new SplitIfNecessary(speedyMulti[0]), 0.1*i,maxdelay1),trials, up);	
-			m[index++] =  new RoutePayment(new NonColludingDropSplits(new SplitClosest(speedyMulti[0]), 0.1*i,maxdelay2),trials, up);
-			m[index++] =  new RoutePayment(new NonColludingDropSplits(new SplitIfNecessary(speedyMulti[0]), 0.1*i,maxdelay2),trials, up);
-		}	
-		m[index++] = new TransactionStats();
-		Series.generate(net, m, runs);
+		boolean up = true;
+		Metric[] m = new Metric[] {
+				new RoutePayment(new SplitClosest(speedyMulti),trials, up)
+		};
+		Series.generate(net, m, 1);
 	}
 	
 	/**
