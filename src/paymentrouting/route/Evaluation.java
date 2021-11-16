@@ -71,7 +71,7 @@ public class Evaluation {
 		String file  = "lightning/lngraph_2020_03_01__04_00.graph";
 //		String file  = "data/simple/simple2_graph.txt";
 		//routing parameters: trees for speedymurmurs
-		int trees = 2;
+		int trees = 1;
 		//generate network
 		Transformation[] trans = new Transformation[] {
 				new InitCapacities(init,0.05*init, bd),
