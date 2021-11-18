@@ -1,6 +1,10 @@
 package paymentrouting.route;
 
+import static paymentrouting.route.FractionUniformColluders.*;
+import static paymentrouting.route.FractionUniformColluders.NodeMetric.*;
+
 import gtna.data.Series;
+import gtna.graph.Graph;
 import gtna.metrics.Metric;
 import gtna.metrics.basic.DegreeDistribution;
 import gtna.metrics.basic.ShortestPaths;
@@ -32,9 +36,9 @@ public class Evaluation {
 		Config.overwrite("MAIN_DATA_FOLDER", "./data/dyn-lightning/");
 		//network parameters
 		int init = 200;
-		int trval = 10;
-		int trs = 10;
-		TransDist td = TransDist.EXP;
+		int trval = 2;
+		int trs = 1000000;
+		TransDist td = TransDist.CONST;
 		BalDist bd = BalDist.EXP;
 		String file  = "lightning/lngraph_2020_03_01__04_00.graph";
 //		String file  = "data/simple/simple2_graph.txt";
@@ -50,10 +54,17 @@ public class Evaluation {
 		DistanceFunction hop = new HopDistance();
 		DistanceFunction speedyMulti = new SpeedyMurmursMulti(trees);
 
+		Attack[] attacks = new Attack[]{
+				new Attack(new FractionUniformColluders(0.2, COUNT, COUNT)),
+				new Attack(new FractionUniformColluders(0.2, DEGREE, COUNT)),
+				new Attack(new FractionUniformColluders(0.2, COUNT, DEGREE)),
+				new Attack(new FractionUniformColluders(0.2, DEGREE, DEGREE)),
+		};
+
 		int trials = 1;
 		boolean up = true;
 		Metric[] m = new Metric[] {
-				new RoutePayment(new SplitClosest(speedyMulti),trials, up)
+				new RoutePayment(new SplitClosest(speedyMulti),trials, up, attacks)
 		};
 
 		Series.generate(net, m, 1);

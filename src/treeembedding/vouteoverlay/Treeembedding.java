@@ -64,7 +64,7 @@ public class Treeembedding extends Transformation{
 //	}
 	@Override
 	public Graph transform(Graph g) {
-		Transformation tbfs = new 
+		Transformation tbfs = new
 				MultipleSpanningTree(this.rootSelector,this.trees, rand,this.p,this.depth, this.dir);
 		g = tbfs.transform(g);
 		for (int i = 0; i < trees; i++){

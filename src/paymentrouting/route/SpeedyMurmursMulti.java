@@ -163,61 +163,25 @@ public class SpeedyMurmursMulti extends DistanceFunction {
 					 MultipleSpanningTree.Direct.TWOPHASE);
 			  g = embed.transform(g);
 
-			  hop = new HopDistance();
-			  hop.initRouteInfo(g, null);
-		 for (int i = 0; i < this.realities; i++) {
-			 SpanningTree tree = (SpanningTree)g.getProperty("SPANNINGTREE_"+i);
-			 this.levels[i] = tree.depth;
-			 this.coords[i] = ((TreeCoordinates)g.getProperty("TREE_COORDINATES_"+i)).getCoords();
-			 //todo rootfind
-			 int rootIndex = tree.getSrc();
-			 System.out.println("ROOT---- "+rootIndex);
-//			 Set[] observations = new Set[nodes.length];
-//			 for (int node = 0; node < nodes.length; node++) {
-//				 int rootDist = (int) distOne(node, roots[i], i);
-//				 Set<Integer> possible = new HashSet<>();
-//				 for (int poss = 0; poss < nodes.length; poss++) {
-//				 	if (rootDist == hop.distance(node, poss, 0)) {
-//				 		possible.add(poss);
-//					}
-//				 }
-//				 observations[node] = possible;
-//			 }
-//			 int sampleSize = 20;
-////			 for (int colluders: new int[]{1, 2, 5, 10, 20}){
-//////				 int colluders = 10;
-//////				 System.out.println();
-////				 for (int a = 0; a < sampleSize; a++) {
-//////					 double avg = 0;
-////					 double avg = Double.MAX_VALUE/2;
-////					 Set<Integer> result = new HashSet<>(
-////							 IntStream.range(0, nodes.length).mapToObj(Integer::new).collect(
-////									 Collectors.toList()));
-////					 for (int b = 0; b < colluders; b++) {
-////						 Set<Integer> obs = observations[rand.nextInt(nodes.length)];
-//////						 avg += obs.size();
-////						 avg = Math.min(avg, obs.size());
-////						 result.retainAll(obs);
-////					 }
-//////					 avg /= colluders;
-////					 System.out.println(colluders+";\t"+result.size()+", obs;\t"+avg);
-////				 }
-////			 }
-//			 int[] freqTot = new int[nodes.length];
-//			 int[] freqDir = new int[nodes.length];
-//			 for(int n = 0; n < nodes.length; n++) {
-//				 int finalN = n;
-//				 long children = IntStream.range(0, nodes.length).filter(a -> isChild(finalN,a)).count();
-//				 long childrenDir = IntStream.range(0, nodes.length).filter(a -> isChild(finalN,a)
-//						 && hop.distance(finalN,a,0)>1).count();
-//				 freqTot[(int) children]++;
-//				 freqDir[(int) childrenDir]++;
-//			 }
-//			 for(int n = 0; n < nodes.length; n++) {
-//				 if (freqTot[n] > 0 || freqDir[n] > 0)
-//					 System.out.println(n + " t-> " + (float)freqTot[n]*100f/nodes.length+ " d-> " + (float)freqDir[n]*100f/nodes.length);
-//			 }
-		 }
+		HopDistance hop = new HopDistance();
+		hop.initRouteInfo(g, rand);
+		for (int i = 0; i < this.realities; i++) {
+			SpanningTree tree = (SpanningTree)g.getProperty("SPANNINGTREE_"+i);
+			this.levels[i] = tree.depth;
+			this.coords[i] = ((TreeCoordinates)g.getProperty("TREE_COORDINATES_"+i)).getCoords();
+
+			// todo start debug
+			for (int n = 0; n < nodes.length; n++) {
+				if (n == roots[i])
+					continue;
+				int hopRootDist = (int) hop.distance(roots[i], n, i);
+				int smRootDist = (int) distOne(roots[i], n, i);
+				if (hopRootDist != smRootDist) {
+					System.out.println("root distance: " + hopRootDist + " != " + smRootDist);
+				}
+			}
+			// todo end debug
+		}
 
 
 		  

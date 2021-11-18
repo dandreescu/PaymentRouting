@@ -56,11 +56,17 @@ public class RoutePayment extends Metric{
 	protected Distribution trysDistribution; //number of attempts used until payment successful (or maximal if unsuccessful) 
 	protected double success; //fraction of payments successful
 	protected double successFirst; //fraction of payments successful in first try
-	protected double[] succTime; //fraction of successful payments over time 
-	
-	
+	protected double[] succTime; //fraction of successful payments over time
+	protected Attack[] attacks = new Attack[0];
+
+
 	public RoutePayment(PathSelection ps, int trials, boolean up) {
-		this(ps,trials,up,Integer.MAX_VALUE); 
+		this(ps,trials,up,Integer.MAX_VALUE);
+	}
+
+	public RoutePayment(PathSelection ps, int trials, boolean up, Attack[] attacks) {
+		this(ps,trials,up,Integer.MAX_VALUE);
+		this.attacks = attacks; // array of attack scenarios to run
 	}
 	
     /**
@@ -152,9 +158,11 @@ public class RoutePayment extends Metric{
 		int slot = 0;
 
 		SpeedyMurmursMulti sp = (SpeedyMurmursMulti) this.select.dist;
-		Attack attack = new Attack(g, sp, 0.1, false);
-//		Attack attack = new Attack(g, sp, new int[]{3, 1});
-		ArrayList<Set<Integer>> sets = new ArrayList<>();
+
+		for(Attack atk: attacks) {	// init attacks
+			atk.init(g, sp);
+		}
+
 //		log = true;
 		
 		//iterate over transactions
@@ -208,27 +216,7 @@ public class RoutePayment extends Metric{
 		                //getNextVals -> distribution of payment value over neighbors
 		                double[] partVals = this.select.getNextsVals(g, cur, dst, 
 		                		pre, excluded, this, pp.val, rand, pp.reality);
-//						if (pre != -1 && dst != cur) {
-//						System.out.println("curr = "+cur);//todo begin
 
-//							Set<Integer> possible = new HashSet<Integer>();
-//							int nextt = -1;
-//							int[] outt = nodes[cur].getOutgoingEdges();
-//							for (int k = 0; k < partVals.length; k++) {
-//								if (partVals[k] > 0){
-//									nextt = outt[k];
-//									System.out.println(nextt);
-//								}
-//							}
-//							for (int node = 0; node < nodes.length; node++) {
-//								if (node == dst || sp.isChild(nextt, node)) {
-//									possible.add(node);
-//								}
-//
-//							}
-//							sets.add(possible);
-//						}
-		                //todo end
 		                //reset excluded for future use 
 		                for (int l = 0; l < past.size(); l++) {
 		            		excluded[past.get(l)] = false;
@@ -242,13 +230,9 @@ public class RoutePayment extends Metric{
 		                	for (int k = 0; k < partVals.length; k++) {
 		                		if (partVals[k] > 0) {
 		                			x++;
-									//todo begin
-									if (attack.isAttacker(cur)) {
-										int[] anonymitySetObf = attack.dstAnonymitySet(0, out[k], dst, cur, true);
-										int[] anonymitySet = attack.dstAnonymitySet(0, out[k], dst, cur, false);
-//										System.out.println("---->  " + anonymitySet.length);
-//										System.out.println("---->  " + Arrays.toString(anonymitySet));
-									}//todo end
+									for (Attack atk: attacks) { // each attack logs stats (if cur is attacker)
+										atk.observe(out[k], dst, cur);
+									}
 		                			//update vals 
 		                			Edge e = edgeweights.makeEdge(cur, out[k]);
 		    						double w = edgeweights.getWeight(e);
@@ -333,9 +317,7 @@ public class RoutePayment extends Metric{
 		    if (this.recompute_epoch != Integer.MAX_VALUE && (i+1) % this.recompute_epoch == 0) {
 		    	this.select.initRoutingInfo(g, rand);
 		    }
-		    for (Set set: sets) {
-				System.out.println("Anonymity set size = "+set.size());
-			}
+
 		}
 
 		//compute final stats
@@ -352,12 +334,17 @@ public class RoutePayment extends Metric{
 		this.successFirst = this.successFirst/this.transactions.length;
 		if (rest > 0) {
 		   this.succTime[this.succTime.length-1] = this.succTime[this.succTime.length-1]/rest;
-		}		
-		
+		}
+
 		//reset weights for further routing algorithms evaluated 
-				if (this.update) {
-					this.weightUpdate(edgeweights, originalAll);
-				}
+		if (this.update) {
+			this.weightUpdate(edgeweights, originalAll);
+		}
+
+		for (Attack atk: attacks) { // print attack results
+			atk.printStats(true);
+			atk.printStats(false);
+		}
 	}
 	
 	@Override
