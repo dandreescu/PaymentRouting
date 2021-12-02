@@ -17,6 +17,7 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class Attack {
   private List<Stats> statsNonObf;
@@ -29,13 +30,17 @@ public class Attack {
   private Graph g;
   private SpeedyMurmursMulti sm;
   private int[] colluders;
+  private Set<Integer> colluderSet;
 
   private HopDistance hop;
+
+  private int successCount;
 
   private int[][] lvl;
   private int[][] roots;
   private int[][][][] possParents;
   private int[][][][] possChildren;
+  private int[] allAttackerNeighbours;
 
 //  private int[] size;
 
@@ -74,8 +79,14 @@ public class Attack {
     this.sm = sm;
     this.statsObf = new ArrayList<>();
     this.statsNonObf = new ArrayList<>();
-    if (colluders == null)
+    if (colluders == null) {
       this.colluders = cg.generateColluders(g);
+    }
+    this.colluderSet = new HashSet<>(colluders.length);
+    for (int c: colluders)
+      colluderSet.add(c);
+    this.allAttackerNeighbours = Arrays.stream(colluders)
+        .flatMap(c -> Arrays.stream(g.getNode(c).getOutgoingEdges())).toArray();
 
     this.hop = new HopDistance();
     this.hop.initRouteInfo(g, null);
@@ -86,7 +97,8 @@ public class Attack {
     this.lvl = sm.levels();
 
     this.roots = possibleRoots();
-    System.out.println("#### poss roots: " + Arrays.stream(roots).map(r -> r.length).max(Integer::compareTo).get());
+    System.out.println("#### poss roots: " +
+        Arrays.stream(roots).map(r -> r.length).max(Integer::compareTo).get());
     this.possParents = new int[sm.realities][][][];
     this.possChildren = new int[sm.realities][][][];
     for (int k = 0; k < sm.realities; k++) {
@@ -98,7 +110,7 @@ public class Attack {
       }
     }
 
-    System.out.println("roots: " + roots.length);
+    System.out.println("roots: " + Arrays.toString(roots));
   }
 
   private int[][] possibleRoots() {
@@ -129,7 +141,7 @@ public class Attack {
         }
         observations[i] = possible;
       }
-      Set<Integer> result = new HashSet<Integer>(observations[0]);
+      Set<Integer> result = new HashSet<>(observations[0]);
       for (Set o : observations) {
         result.retainAll(o);
       }
@@ -223,8 +235,11 @@ public class Attack {
 
   public void observe(int to, int dst, int cur) {
     if (isAttacker(cur)) {
+//      System.out.println("----- YES ------");
       dstAnonymitySet(0, to, dst, cur, true);
       dstAnonymitySet(0, to, dst, cur, false);
+    } else {
+//      System.out.println("### NO");
     }
   }
 
@@ -233,8 +248,8 @@ public class Attack {
 //    Set<Integer> all = new HashSet<>();
     int[] sizePerTree = new int[sm.realities];
     for (int k = 0; k < sm.realities; k++) {
-      Set<Integer> currSet = Arrays.stream(dstAnonymitySet(from, to, dst, attacker, obfuscated, k))
-          .boxed().collect(Collectors.toSet());
+      // todo attacker can investigate dstAnoSet for each attacker's each neighbour
+      Set<Integer> currSet = dstAnonymitySet(from, to, dst, attacker, obfuscated, k);
       sizePerTree[k] = currSet.size();
       if (k == 0) {
         res.addAll(currSet);
@@ -243,13 +258,14 @@ public class Attack {
       }
 //      all.addAll(currSet);
     }
+    // todo remember just atk and dst index maybe?
     int[] atLvls = Arrays.stream(lvl).mapToInt(l -> l[attacker]).toArray();
     int atDeg = g.getNode(attacker).getInDegree();
     int[] dstLvls = Arrays.stream(lvl).mapToInt(l -> l[dst]).toArray();
     int dstDeg = g.getNode(dst).getInDegree();
     int size = res.size();
 
-    (obfuscated ? statsObf :statsNonObf)
+    (obfuscated ? statsObf : statsNonObf)
         .add(new Stats(atLvls, atDeg, dstLvls, dstDeg, sizePerTree, size));
 
 //    System.out.println("### att lvl: "
@@ -265,11 +281,30 @@ public class Attack {
     return res.stream().mapToInt(Integer::intValue).toArray();
   }
 
-  private int[] dstAnonymitySet(int from, int to, int dst, int attacker, boolean obfuscated,
-                                int k) {
-    return maybeSubtree(to, k).stream()
-        .filter(i -> obfuscated || hop.distance(attacker, dst, 0) == hop.distance(attacker, i, 0))
-        .mapToInt(Integer::intValue).toArray();
+  private Set<Integer> dstAnonymitySet(int from, int to, int dst, int attacker, boolean obfuscated,
+                                       int k) {
+    Set<Integer> result = maybeSubtree(to, k);
+    if (!sm.isChild(dst, to, k)) { // if not a child, anonymity set is the complement
+      int maybeAttackerNeighbourParent = -1;
+      for (int n: allAttackerNeighbours) {
+        if (sm.isChild(dst, n, k)) {
+          maybeAttackerNeighbourParent = n;
+          break; // just get the first one, not necessarily optimal
+        }
+      }
+      if (maybeAttackerNeighbourParent == -1) { // not found
+        Set<Integer> allNodes =
+            IntStream.range(0, g.getNodeCount()).boxed().collect(Collectors.toSet());
+        // todo maybe since we invert we want larger set here: go up the tree? check all possible to maximize exclusion set?
+        allNodes.removeAll(result);
+        result = allNodes;
+      } else {
+        result = maybeSubtree(maybeAttackerNeighbourParent, k);
+      }
+    }
+    return result.stream().filter(i -> obfuscated
+        || hop.distance(attacker, dst, 0) == hop.distance(attacker, i, 0))
+        .collect(Collectors.toSet());
   }
 
   private Set<Integer> maybeSubtree(int n, int k) {
@@ -293,12 +328,7 @@ public class Attack {
   }
 
   private boolean isAttacker(int n) {
-    for (int c : colluders) {
-      if (c == n) {
-        return true;
-      }
-    }
-    return false;
+    return colluderSet.contains(n);
   }
 
   public void printStats(boolean obf) {
@@ -308,9 +338,9 @@ public class Attack {
     Map<Integer, Double> dstHist = new HashMap<>();
     Map<Integer, Double> atkHist = new HashMap<>();
 
-    for (Stats s: (obf ? statsObf : statsNonObf)) {
+    for (Stats s : (obf ? statsObf : statsNonObf)) {
       sizePerDstDeg.putIfAbsent(s.dstDeg, new ArrayList<>());
-      sizePerAtkDeg.putIfAbsent(s.atDeg,  new ArrayList<>());
+      sizePerAtkDeg.putIfAbsent(s.atDeg, new ArrayList<>());
 
       sizePerDstDeg.get(s.dstDeg).add(s.size);
       sizePerAtkDeg.get(s.atDeg).add(s.size);
@@ -320,51 +350,53 @@ public class Attack {
       sizeHist.put(logsize, sizeHist.get(logsize) + 1);
     }
 
-    for (Map.Entry<Integer, List<Integer>> e: sizePerDstDeg.entrySet()) {
-      dstHist.put(e.getKey(), e.getValue().stream().mapToDouble(Integer::doubleValue).average().orElse(-1));
+    for (Map.Entry<Integer, List<Integer>> e : sizePerDstDeg.entrySet()) {
+      dstHist.put(e.getKey(),
+          e.getValue().stream().mapToDouble(Integer::doubleValue).average().orElse(-1));
     }
-    for (Map.Entry<Integer, List<Integer>> e: sizePerAtkDeg.entrySet()) {
-      atkHist.put(e.getKey(), e.getValue().stream().mapToDouble(Integer::doubleValue).average().orElse(-1));
+    for (Map.Entry<Integer, List<Integer>> e : sizePerAtkDeg.entrySet()) {
+      atkHist.put(e.getKey(),
+          e.getValue().stream().mapToDouble(Integer::doubleValue).average().orElse(-1));
     }
 
-//    int maxDstDeg = sizePerDstDeg.keySet().stream().max(Integer::compareTo).orElse(0);
-//    int maxAtkDeg = sizePerAtkDeg.keySet().stream().max(Integer::compareTo).orElse(0);
-//    int maxSize = sizeHist.keySet().stream().max(Integer::compareTo).orElse(0);
-//
-//    double[] dst = new double[maxDstDeg];
-//    double[] atk = new double[maxAtkDeg];
-//    int[] siz = new int[maxSize];
-//
-//
-//    for (int i = 0; i < dst.length; i++) {
-//      dst[i] = sizePerDstDeg.getOrDefault(i, List.of(-1))
-//          .stream().mapToDouble(Integer::doubleValue).average().orElse(-1);
-//    }
-//
-//    for (int i = 0; i < atk.length; i++) {
-//      atk[i] = sizePerAtkDeg.getOrDefault(i, List.of(-1))
-//          .stream().mapToDouble(Integer::doubleValue).average().orElse(-1);
-//    }
-//
-//    for (int i = 0; i < siz.length; i++) {
-//      siz[i] = sizeHist.getOrDefault(i, -1);
-//    }
+    int maxDstDeg = sizePerDstDeg.keySet().stream().max(Integer::compareTo).orElse(0);
+    int maxAtkDeg = sizePerAtkDeg.keySet().stream().max(Integer::compareTo).orElse(0);
+    int maxSize = sizeHist.keySet().stream().max(Integer::compareTo).orElse(0);
+
+    double[] dst = new double[maxDstDeg];
+    double[] atk = new double[maxAtkDeg];
+    int[] siz = new int[maxSize];
+
+
+    for (int i = 0; i < dst.length; i++) {
+      dst[i] = sizePerDstDeg.getOrDefault(i, List.of(-1))
+          .stream().mapToDouble(Integer::doubleValue).average().orElse(-1);
+    }
+
+    for (int i = 0; i < atk.length; i++) {
+      atk[i] = sizePerAtkDeg.getOrDefault(i, List.of(-1))
+          .stream().mapToDouble(Integer::doubleValue).average().orElse(-1);
+    }
+
+    for (int i = 0; i < siz.length; i++) {
+      siz[i] = sizeHist.getOrDefault(i, -1);
+    }
 
     try {
       FileWriter myWriter = new FileWriter("THREE_new_" + obf + "_oneST_" + cg.toString() + ".txt");
-      myWriter.write("observed=" + statsObf.size() + "\n");
-      myWriter.write("size avg"+ (obf ? statsObf : statsNonObf).stream().mapToDouble(s -> s.size).average().orElse(-1) + "\n");
+      myWriter.write("observed fraction = " + statsObf.size() / (double) successCount + "\n");
+      myWriter.write("size avg = "+ (obf ? statsObf : statsNonObf).stream().mapToDouble(s -> s.size).average().orElse(-1) + "\n");
       myWriter.write("size histogram\n");
       for(Map.Entry<Integer, Integer> e: sizeHist.entrySet().stream()
           .sorted(Map.Entry.comparingByKey()).collect(Collectors.toList())) {
         myWriter.write(e.getKey() + ": " + e.getValue() + "\n");
       }
-      myWriter.write("avg size dst deg\n");
+      myWriter.write("\n## avg size dst deg\n");
       for(Map.Entry<Integer, Double> e: dstHist.entrySet().stream()
           .sorted(Map.Entry.comparingByKey()).collect(Collectors.toList())) {
         myWriter.write(e.getKey() + ": " + e.getValue() + "\n");
       }
-      myWriter.write("avg size atk deg\n");
+      myWriter.write("\n## avg size atk deg\n");
       for(Map.Entry<Integer, Double> e: atkHist.entrySet().stream()
           .sorted(Map.Entry.comparingByKey()).collect(Collectors.toList())) {
         myWriter.write(e.getKey() + ": " + e.getValue() + "\n");
@@ -378,10 +410,15 @@ public class Attack {
       e.printStackTrace();
     }
 
-//    System.out.println("#####  " + cg.toString() + ", tr count: " + statsObf.size());
-//    System.out.println(obf ? "OBFUSCATED COORDINATES" : "NON-OBFUSCATED COORDINATES");
-//    System.out.println((obf ? statsObf : statsNonObf).stream().mapToDouble(s -> s.size).average().orElse(-1));
+    System.out.println("#####  " + cg.toString() + ", tr count: " + statsObf.size());
+    System.out.println(obf ? "OBFUSCATED COORDINATES" : "NON-OBFUSCATED COORDINATES");
+    System.out.println(
+        (obf ? statsObf : statsNonObf).stream().mapToDouble(s -> s.size).average().orElse(-1));
 
+  }
+
+  public void setSuccessCount(int successCount) {
+    this.successCount = successCount;
   }
 
   class Stats {
@@ -406,11 +443,11 @@ public class Attack {
     public String toString() {
       return
           "atLvls=" + Arrays.toString(atLvls) +
-          ", atDeg=" + atDeg +
-          ", dstLvls=" + Arrays.toString(dstLvls) +
-          ", dstDeg=" + dstDeg +
-          ", sizePerTree=" + Arrays.toString(sizePerTree) +
-          ", size=" + size;
+              ", atDeg=" + atDeg +
+              ", dstLvls=" + Arrays.toString(dstLvls) +
+              ", dstDeg=" + dstDeg +
+              ", sizePerTree=" + Arrays.toString(sizePerTree) +
+              ", size=" + size;
     }
   }
 

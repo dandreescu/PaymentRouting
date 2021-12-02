@@ -36,8 +36,8 @@ public class Evaluation {
 		Config.overwrite("MAIN_DATA_FOLDER", "./data/dyn-lightning/");
 		//network parameters
 		int init = 200;
-		int trval = 2;
-		int trs = 1000000;
+		double trval = 0.01;
+		int trs = 1000;
 		TransDist td = TransDist.CONST;
 		BalDist bd = BalDist.EXP;
 		String file  = "lightning/lngraph_2020_03_01__04_00.graph";
@@ -56,9 +56,9 @@ public class Evaluation {
 
 		Attack[] attacks = new Attack[]{
 				new Attack(new FractionUniformColluders(0.2, COUNT, COUNT)),
-				new Attack(new FractionUniformColluders(0.2, DEGREE, COUNT)),
-				new Attack(new FractionUniformColluders(0.2, COUNT, DEGREE)),
-				new Attack(new FractionUniformColluders(0.2, DEGREE, DEGREE)),
+//				new Attack(new FractionUniformColluders(0.2, DEGREE, COUNT)),
+//				new Attack(new FractionUniformColluders(0.2, COUNT, DEGREE)),
+//				new Attack(new FractionUniformColluders(0.2, DEGREE, DEGREE)),
 		};
 
 		int trials = 1;

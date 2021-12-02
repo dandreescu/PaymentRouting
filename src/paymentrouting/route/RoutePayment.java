@@ -167,9 +167,10 @@ public class RoutePayment extends Metric{
 		
 		//iterate over transactions
 		for (int i = 0; i < this.transactions.length; i++) {
+//			System.out.println("### Transaction " + i);
 			Transaction tr = this.transactions[i];
-			int src = sp.roots[0];
-//			int src = tr.getSrc();
+//			int src = sp.roots[0];
+			int src = tr.getSrc();
 			int dst = tr.getDst();
 			if (log) System.out.println("Src-dst " + src + "," + dst);
 //			System.out.println("Src-dst " + src + "," + dst);
@@ -286,6 +287,7 @@ public class RoutePayment extends Metric{
 		    		if (log) {
 		    			System.out.println("Failure");
 		    		}
+//					System.out.println("### FAILURE");
 		    	} else {
 		    		if (!this.update) {
 		    			//return credit links to original state
@@ -297,6 +299,7 @@ public class RoutePayment extends Metric{
 			    	
 			    	this.succTime[slot]++;
 		    		this.success++;
+//					System.out.println("### SUCCESS");
 		    		if (t == 0) {
 		    			this.successFirst++;
 		    		}
@@ -311,13 +314,20 @@ public class RoutePayment extends Metric{
 		    		this.succTime[slot] = this.succTime[slot]/this.tInterval;
 		    		slot++;
 		    	}
+
 		    }
 		    
 		    //recompute routing info, e.g., spanning trees
 		    if (this.recompute_epoch != Integer.MAX_VALUE && (i+1) % this.recompute_epoch == 0) {
 		    	this.select.initRoutingInfo(g, rand);
+				System.out.println("RECOMPUTE???");
 		    }
 
+		}
+		for (Attack atk: attacks) { // print attack results
+			atk.setSuccessCount((int)success);
+			atk.printStats(true);
+			atk.printStats(false);
 		}
 
 		//compute final stats
@@ -341,10 +351,7 @@ public class RoutePayment extends Metric{
 			this.weightUpdate(edgeweights, originalAll);
 		}
 
-		for (Attack atk: attacks) { // print attack results
-			atk.printStats(true);
-			atk.printStats(false);
-		}
+
 	}
 	
 	@Override

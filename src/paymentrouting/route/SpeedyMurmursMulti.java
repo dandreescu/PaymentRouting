@@ -93,6 +93,21 @@ public class SpeedyMurmursMulti extends DistanceFunction {
 
 	}
 
+	public boolean isChild(int c, int p, int j) {
+		int[] cA = this.coords[j][c];
+		int[] cB = this.coords[j][p];
+		int cpl = 0;
+		for (int i = 0; i < levels[j][c]+1; i++) {
+			if (cA[i] == cB[i]) {
+				cpl++;
+			} else {
+				break;
+			}
+		}
+		return cpl == rootDist(p, j);
+
+	}
+
 	/**
 	 * for attack: parent of i in tree k
 	 * @return
