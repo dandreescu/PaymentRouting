@@ -43,7 +43,7 @@ public class Evaluation {
 		Config.overwrite("SERIES_GRAPH_WRITE", ""+false);
 		Config.overwrite("MAIN_DATA_FOLDER", "./data/boomerang/");
 
-		int trs = 1000000;
+		int trs = 100; // todo more transactions
 
 		int initCap = 200;
 
@@ -58,22 +58,21 @@ public class Evaluation {
 			};
 			Network net = new WattsStrogatz(100, 8, 0.25, trans);
 
-			Metric[] m = new Metric[1];
+			Metric[] m = new Metric[3*5];
 			int k = 0;
 			for (int u : new int[] {
-					//				0,
-					//				10,
-					//				20,
-					//				75,
-					150,
-					//				300
+									0,
+									10,
+									20,
+									75,
+									150,
 			}) {
-//				m[k++] = new RouteBoomerang(RETRY, u, lat);
-//				m[k++] = new RouteBoomerang(REDUNDANT, u, lat);
-//				m[k++] = new RouteBoomerang(REDUNDANT_RETRY, u, lat);
+				m[k++] = new RouteBoomerang(RETRY, u, lat);
+				m[k++] = new RouteBoomerang(REDUNDANT, u, lat);
+				m[k++] = new RouteBoomerang(REDUNDANT_RETRY, u, lat);
 			}
-			m[k++] =
-					new RoutePaymentConcurrent(new SplitClosest(new SpeedyMurmursMulti(5)), 1, lat);
+//			m[k++] =
+//					new RoutePaymentConcurrent(new SplitClosest(new SpeedyMurmursMulti(5)), 1, lat);
 			Series.generate(net, m, 1);
 		}
 	}

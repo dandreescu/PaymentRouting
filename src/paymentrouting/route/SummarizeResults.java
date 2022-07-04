@@ -29,15 +29,14 @@ public class SummarizeResults {
 	}
 
 	public static void boomerang(String single) {
-		String dir = "data/boomerang/WATTS_STROGATZ-100-8-0.25--INIT_CAPACITIES-200.0-EXP--TRANSACTIONS-100.0-EXP-false-10000-100.0-false--COMPUTE_PATHS-25/";
+		String dir = "data/boomerang/WATTS_STROGATZ-100-8-0.25--INIT_CAPACITIES-200.0-EXP--TRANSACTIONS-100.0-EXP-false-100-100.0-false--COMPUTE_PATHS-25/";
 //		String dir = "data/boomerang/READABLE_FILE_LIGHTNING-100/";
 		String[] us = {
-//				"0",
-//				"10",
-//				"20",
-//				"75",
+				"0",
+				"10",
+				"20",
+				"75",
 				"150",
-//				"300"
 		};
 		String[] protocols = new String[] {
 				"RETRY",
